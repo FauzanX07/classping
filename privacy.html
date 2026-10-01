@@ -52,7 +52,7 @@
     <li><a href="#who">Who we are</a></li>
     <li><a href="#on-your-pc">What stays on your PC</a></li>
     <li><a href="#leaves">What leaves your PC</a></li>
-    <li><a href="#google-sign-in">Sign in with Google</a></li>
+    <li><a href="#google-sign-in">How Class Ping connects to Google</a></li>
     <li><a href="#shared">Who it is shared with</a></li>
     <li><a href="#security">How it is protected</a></li>
     <li><a href="#how-long">How long it is kept</a></li>
@@ -76,7 +76,7 @@
       <tr><th>Words read from attachments</th><td>Text read out of photos and PDFs by Windows' own text recognition, on your PC, so you can search it.</td></tr>
       <tr><th>Your choices</th><td>Settings, which posts you moved to another section or marked done, and a note of which posts Class Ping has already told you about.</td></tr>
       <tr><th>AI keys, if you add any</th><td>Stored encrypted with Windows' own per-user protection (DPAPI), so only your Windows account on this PC can read them.</td></tr>
-      <tr><th>Your Google sign-in</th><td>A "stay signed in" record kept by Google Chrome, in a folder used only by Class Ping. You sign in on Google's own page; Class Ping never sees your password.</td></tr>
+      <tr><th>Your Google sign-in</th><td>With Sign in with Google: the permission Google gives Class Ping, encrypted with Windows' own protection. With Full features: a "stay signed in" record kept by Google Chrome, in a folder used only by Class Ping. Either way, Class Ping never sees your password.</td></tr>
       <tr><th>An activity log</th><td>A record of what the app did, used to find problems. It holds no passwords, but it can contain class and post titles. Old entries are removed automatically.</td></tr>
       <tr><th>Unsent feedback</th><td>If you send feedback while offline, the message waits on your PC and is sent when you are back online. It is deleted after 14 days if it still cannot be sent.</td></tr>
     </table>
@@ -86,15 +86,16 @@
   <h2 id="leaves">3. What leaves your PC</h2>
   <p>Only these, and nothing else:</p>
   <h3>To Google, to show you your Classroom</h3>
-  <p>Class Ping loads Google Classroom in Google Chrome, and downloads your attachments and profile pictures from Google, using your signed-in session, exactly as your browser would. When you write a comment in Class Ping, it posts that comment to Classroom for you. For a YouTube attachment it loads the video's preview picture from YouTube. <a href="https://policies.google.com/privacy">Google's privacy policy</a> applies to these.</p>
+  <p>Class Ping asks Google for your Classroom, in the way described in section 4, and loads profile pictures from Google. With Full features, it also downloads your attachments and, when you write a comment in Class Ping, posts that comment to Classroom for you. For a YouTube attachment it loads the video's preview picture from YouTube. <a href="https://policies.google.com/privacy">Google's privacy policy</a> applies to these.</p>
   <h3>To an AI company, only if you turn it on</h3>
   <p>AI is <strong>off</strong> by default: posts are sorted on your PC. If you choose an AI service (Groq, Google Gemini, OpenAI or Anthropic Claude) and add your own key, then for each post Class Ping sends that company: the class name, the post's title, its text, its dates, the names of its attachments, and its photos. It uses the answer to write a short "what to do" line, to suggest a section, and to translate posts. A post's text can mention people by name. Class Ping does <strong>not</strong> send the teacher's name, the comments, or your email address. That company's own privacy policy applies to what it receives. If you choose Ollama, the post goes to Ollama running on your own PC and nowhere else. You can turn AI off, and delete your keys, at any time in Settings.</p>
   <h3>Feedback you choose to send</h3>
   <p>Only when you press <strong>Send</strong> in the feedback window, Class Ping sends us: the name you typed, the email address you typed (optional), your message, the versions of Class Ping and Windows, how posts are being sorted, and, only if you leave the box ticked, recent lines of the activity log with email addresses and web links removed first. It reaches our support inbox. We use it only to read your message, reply to you, and fix problems.</p>
 
-  <h2 id="google-sign-in">4. Sign in with Google</h2>
-  <p>We plan to offer a second way to connect: <strong>Sign in with Google</strong>, using Google's official Classroom interface, so that you approve Class Ping on Google's own screen. This section applies when you use that option.</p>
-  <p>Class Ping would ask Google only for <strong>read-only</strong> access to:</p>
+  <h2 id="google-sign-in">4. How Class Ping connects to Google</h2>
+  <p>You choose one of two ways the first time you open Class Ping, and you can switch at any time in Settings.</p>
+  <h3>Sign in with Google (the default)</h3>
+  <p>You approve Class Ping on Google's own screen, using Google's official Classroom interface. Class Ping asks Google only for <strong>read-only</strong> access to:</p>
   <ul>
     <li>your list of classes;</li>
     <li>the announcements, assignments, questions and materials in those classes, with their due dates and attachments' names and links;</li>
@@ -103,6 +104,8 @@
   <p>What Class Ping does with that data is exactly what this policy describes for the rest of the app: it is shown to you, sorted and searched <strong>on your PC</strong>, and used to notify you of new posts. It is not sent to us. It is sent to an AI company only if you have turned AI on, as described in section 3. The sign-in permission Google gives Class Ping is kept encrypted on your PC. No person at Class Ping reads your Google data.</p>
   <p><strong>Class Ping's use and transfer to any other app of information received from Google APIs will adhere to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including the Limited Use requirements.</strong> We never sell Google user data, never use it for advertising, and never use it to decide anyone's credit or lending.</p>
   <p>You can remove Class Ping's access at any time at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>, and delete what it saved by uninstalling it (see <a href="#controls">Your controls</a>). If we ever want to use Google data in a new way, we will tell you in the app and ask first.</p>
+  <h3>Full features (optional)</h3>
+  <p>If you turn on Full features in Settings, Class Ping opens Google Classroom in Google Chrome on your PC, and you sign in on <strong>Google's own sign-in page</strong>. Your email and password go only to Google: Class Ping never reads, saves or sends them. Class Ping then reads the Classroom pages you can already see, downloads their attachments to your PC, and posts a comment only when you write one. Everything it reads stays on your PC, exactly as described above, and the same promises apply: no ads, no selling, no sharing. Turning Full features off in Settings stops it.</p>
 
   <h2 id="shared">5. Who it is shared with</h2>
   <ul>
