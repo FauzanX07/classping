@@ -8,7 +8,7 @@
   var DEFAULTS = { theme: "system", text: "normal", links: "plain" };
   var THEMES = [
     ["system", "Match my device"],
-    ["study-lamp", "Study Lamp"],
+    ["study-lamp", "Evergreen"],
     ["parchment", "Parchment"],
     ["chalkboard", "Chalkboard"],
     ["midnight-ink", "Midnight Ink"],

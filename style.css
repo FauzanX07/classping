@@ -1,19 +1,19 @@
 /* Class Ping -- the same look as the desktop app.
-   Study Lamp (warm dark) by default; Parchment (cream paper) when the
+   Evergreen (dark charcoal and forest green) by default; Parchment (cream paper) when the
    visitor's device is set to light. Flat: hairlines, one accent, no shine. */
 
 :root {
-  --sidebar: #1B1A18;
-  --bg: #242320;
-  --card: #2D2B28;
-  --raised: #383632;
-  --divider: #45423C;
-  --accent: #D97757;
-  --accent-hover: #E48A6B;
-  --accent-text: #1F1E1C;
-  --text: #EDE9E0;
-  --muted: #B0AA9E;
-  --faint: #8A8479;
+  --sidebar: #151917;
+  --bg: #1B201D;
+  --card: #222824;
+  --raised: #303732;
+  --divider: #3B443E;
+  --accent: #6DB585;
+  --accent-hover: #85C79B;
+  --accent-text: #121714;
+  --text: #E8ECE6;
+  --muted: #A8B0A9;
+  --faint: #848C85;
   --due: #E2A45F;
   --ok: #9DBB8F;
   --link: #8AB4F8;
@@ -303,17 +303,17 @@ footer a { color: var(--muted); }
 
 /* -- the app's five themes, chosen in Settings (copied from app/ui/theme.py) -- */
 :root[data-theme="study-lamp"] {
-  --sidebar: #1B1A18;
-  --bg: #242320;
-  --card: #2D2B28;
-  --raised: #383632;
-  --divider: #45423C;
-  --accent: #D97757;
-  --accent-hover: #E48A6B;
-  --accent-text: #1F1E1C;
-  --text: #EDE9E0;
-  --muted: #B0AA9E;
-  --faint: #8A8479;
+  --sidebar: #151917;
+  --bg: #1B201D;
+  --card: #222824;
+  --raised: #303732;
+  --divider: #3B443E;
+  --accent: #6DB585;
+  --accent-hover: #85C79B;
+  --accent-text: #121714;
+  --text: #E8ECE6;
+  --muted: #A8B0A9;
+  --faint: #848C85;
   --due: #E2A45F;
   --ok: #9DBB8F;
   --link: #8AB4F8;
@@ -555,11 +555,11 @@ main { animation: page-in 0.32s ease both; }
 .swatch i:nth-child(1) { width: 28%; }
 .swatch i:nth-child(2) { flex: 1; position: relative; }
 .swatch i:nth-child(2)::after { content: ""; position: absolute; left: 10px; right: 10px; top: 11px; height: 16px; border-radius: 3px; background: var(--sw-card); border-left: 3px solid var(--sw-accent); }
-.sw-system { --sw-card: #2D2B28; --sw-accent: #D97757; }
-.sw-system i:nth-child(1) { background: linear-gradient(to bottom, #1B1A18 50%, #EFE8DA 50%); }
-.sw-system i:nth-child(2) { background: linear-gradient(to bottom, #242320 50%, #F7F2E8 50%); }
-.sw-study-lamp { --sw-card: #2D2B28; --sw-accent: #D97757; }
-.sw-study-lamp i:nth-child(1) { background: #1B1A18; } .sw-study-lamp i:nth-child(2) { background: #242320; }
+.sw-system { --sw-card: #222824; --sw-accent: #6DB585; }
+.sw-system i:nth-child(1) { background: linear-gradient(to bottom, #151917 50%, #EFE8DA 50%); }
+.sw-system i:nth-child(2) { background: linear-gradient(to bottom, #1B201D 50%, #F7F2E8 50%); }
+.sw-study-lamp { --sw-card: #222824; --sw-accent: #6DB585; }
+.sw-study-lamp i:nth-child(1) { background: #151917; } .sw-study-lamp i:nth-child(2) { background: #1B201D; }
 .sw-parchment { --sw-card: #FFFDF8; --sw-accent: #9E2B35; }
 .sw-parchment i:nth-child(1) { background: #EFE8DA; } .sw-parchment i:nth-child(2) { background: #F7F2E8; }
 .sw-chalkboard { --sw-card: #223529; --sw-accent: #E8C547; }
