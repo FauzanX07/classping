@@ -136,6 +136,7 @@ strong { font-weight: 600; }
   padding-bottom: 88px;
 }
 .hero h1 { margin-bottom: 20px; }
+.hero-logo { display: block; width: 104px; height: 104px; margin-bottom: 22px; }
 .lead { font-size: 19px; line-height: 1.6; color: var(--muted); margin-bottom: 28px; max-width: 520px; }
 
 .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
