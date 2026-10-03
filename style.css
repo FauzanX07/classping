@@ -37,8 +37,8 @@
     --card: #FFFDF8;
     --raised: #EAE2D3;
     --divider: #D6CAB4;
-    --accent: #9E2B35;
-    --accent-hover: #B23A44;
+    --accent: #2F6B45;
+    --accent-hover: #3A7D54;
     --accent-text: #FFF8F0;
     --text: #2B2620;
     --muted: #6B6256;
@@ -328,8 +328,8 @@ footer a { color: var(--muted); }
   --card: #FFFDF8;
   --raised: #EAE2D3;
   --divider: #D6CAB4;
-  --accent: #9E2B35;
-  --accent-hover: #B23A44;
+  --accent: #2F6B45;
+  --accent-hover: #3A7D54;
   --accent-text: #FFF8F0;
   --text: #2B2620;
   --muted: #6B6256;
@@ -368,8 +368,8 @@ footer a { color: var(--muted); }
   --card: #1D2438;
   --raised: #2A3350;
   --divider: #333D5C;
-  --accent: #C9A45C;
-  --accent-hover: #D8B670;
+  --accent: #6DB585;
+  --accent-hover: #85C79B;
   --accent-text: #141925;
   --text: #E8E6DF;
   --muted: #A7AABB;
@@ -388,8 +388,8 @@ footer a { color: var(--muted); }
   --card: #141414;
   --raised: #232323;
   --divider: #2B2B2B;
-  --accent: #EDE4CF;
-  --accent-hover: #F8F1E0;
+  --accent: #6DB585;
+  --accent-hover: #85C79B;
   --accent-text: #0A0A0A;
   --text: #ECECEC;
   --muted: #A6A6A6;
@@ -560,13 +560,13 @@ main { animation: page-in 0.32s ease both; }
 .sw-system i:nth-child(2) { background: linear-gradient(to bottom, #1B201D 50%, #F7F2E8 50%); }
 .sw-study-lamp { --sw-card: #222824; --sw-accent: #6DB585; }
 .sw-study-lamp i:nth-child(1) { background: #151917; } .sw-study-lamp i:nth-child(2) { background: #1B201D; }
-.sw-parchment { --sw-card: #FFFDF8; --sw-accent: #9E2B35; }
+.sw-parchment { --sw-card: #FFFDF8; --sw-accent: #2F6B45; }
 .sw-parchment i:nth-child(1) { background: #EFE8DA; } .sw-parchment i:nth-child(2) { background: #F7F2E8; }
 .sw-chalkboard { --sw-card: #223529; --sw-accent: #E8C547; }
 .sw-chalkboard i:nth-child(1) { background: #17241E; } .sw-chalkboard i:nth-child(2) { background: #1C2B24; }
-.sw-midnight-ink { --sw-card: #1D2438; --sw-accent: #C9A45C; }
+.sw-midnight-ink { --sw-card: #1D2438; --sw-accent: #6DB585; }
 .sw-midnight-ink i:nth-child(1) { background: #121726; } .sw-midnight-ink i:nth-child(2) { background: #171D2E; }
-.sw-ebony { --sw-card: #141414; --sw-accent: #EDE4CF; }
+.sw-ebony { --sw-card: #141414; --sw-accent: #6DB585; }
 .sw-ebony i:nth-child(1) { background: #0E0E0E; } .sw-ebony i:nth-child(2) { background: #000000; }
 .segmented { display: inline-flex; background: var(--raised); border-radius: var(--radius); padding: 3px; gap: 2px; flex-wrap: wrap; }
 .segmented .choice .face { border: 0; background: transparent; padding: 7px 16px; font-size: 15px; }
