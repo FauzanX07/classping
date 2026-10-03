@@ -1,0 +1,14 @@
+{
+  "name": "Class Ping",
+  "short_name": "Class Ping",
+  "description": "Your Google Classroom as a to-do list, in the browser. Read-only; everything stays in your browser.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#1B201D",
+  "theme_color": "#151917",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
