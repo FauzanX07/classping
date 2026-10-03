@@ -492,7 +492,7 @@ function googleButton(label) {
 
 function welcome() {
   const ready = auth.configured();
-  return `<div class="ap-welcome"><div class="ap-wcard">` +
+  return `<a class="ap-back" href="../">&larr; Class Ping website</a><div class="ap-welcome"><div class="ap-wcard">` +
     `<img src="../logo-name.png?v=5" alt="Class Ping" width="96" height="96">` +
     `<h1>Class Ping in your browser</h1>` +
     `<p class="lead">Your Google Classroom as a to-do list: homework first, due dates in plain sight, everything sorted into sections.</p>` +
