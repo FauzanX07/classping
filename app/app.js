@@ -340,7 +340,7 @@ function paintNav() {
     for (const course of S.courses) {
       const n = S.posts.filter((p) => p.courseId === course.id && (S.showDone || !isDone(p))).length;
       html += `<button class="ap-nav ap-class${S.course === course.id ? " on" : ""}" data-course="${esc(course.id)}">` +
-        `<i>${esc(shortClass(course.name).charAt(0).toUpperCase())}</i><span>${esc(shortClass(course.name))}</span><em>${n || ""}</em></button>`;
+        `<i style="background:${colourFor(shortClass(course.name))}">${esc(shortClass(course.name).charAt(0).toUpperCase())}</i><span>${esc(shortClass(course.name))}</span><em>${n || ""}</em></button>`;
     }
   }
   holder.innerHTML = html;
@@ -372,17 +372,27 @@ function fileTile(file) {
     `<span class="ap-fkind">${badge}</span></${tag}>`;
 }
 
+// A person with no picture gets their initials on a colour worked out from their name,
+// so the same person is always the same colour. All of them are white-text safe.
+const AVATAR_COLOURS = ["#37784C", "#3D6FD1", "#8A5AA8", "#26766E", "#B0486B", "#5E63B6", "#5F7D33", "#3F7197"];
+function colourFor(name) {
+  let hash = 2166136261;
+  for (const ch of String(name || "").trim().toLowerCase()) hash = Math.imul(hash ^ ch.codePointAt(0), 16777619) >>> 0;
+  return AVATAR_COLOURS[hash % AVATAR_COLOURS.length];
+}
+
 // The teacher's picture when Google gave one, otherwise their initials.
 function initials(name) {
   const words = String(name || "").replace(/\b(mr|mrs|ms|miss|dr|sir|madam)\.?\s/gi, "").trim().split(/\s+/).filter(Boolean);
   if (!words.length) return "?";
-  return ((words[0][0] || "") + (words.length > 1 ? words[words.length - 1][0] : "")).toUpperCase();
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();      // as in the Windows app
+  return (words[0][0] + words[words.length - 1][0]).toUpperCase();
 }
 
 function avatar(post) {
   const picture = post.authorPhoto
     ? `<img src="${esc(post.authorPhoto)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : "";
-  return `<span class="ap-ava" aria-hidden="true">${esc(initials(post.author))}${picture}</span>`;
+  return `<span class="ap-ava" style="background:${colourFor(post.author)}" aria-hidden="true">${esc(initials(post.author))}${picture}</span>`;
 }
 
 function card(post) {
