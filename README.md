@@ -1,3 +1,5 @@
+<img src="logo-name.png" alt="Class Ping logo" width="120">
+
 # Class Ping website
 
 This repository holds the website for **Class Ping**, a free Windows app for students.
@@ -17,7 +19,9 @@ when a teacher posts something new.
 | `privacy.html` | The privacy policy |
 | `style.css` | The look of both pages |
 | `CNAME` | Points the site at classping.wazeem.com |
-| `logo.png`, `favicon.png`, `apple-touch-icon.png` | The Class Ping logo |
+| `logo.png`, `favicon.png`, `apple-touch-icon.png` | The plain Class Ping mark, for small spots (top bar, browser tab) |
+| `logo-name.png` | The logo with the name, for the home page |
+| `social.png` | The picture shown when a link to the site is shared |
 
 The Class Ping app itself is not in this repository.
 
