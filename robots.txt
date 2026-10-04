@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://classping.wazeem.com/sitemap.xml
