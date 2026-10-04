@@ -109,9 +109,14 @@ body { margin: 0; font: 15px/1.55 var(--ui); background: var(--bg); color: var(-
 .k-question { --k: var(--due); }
 .ap-new { font: 700 11px/1 var(--ui); letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
 .ap-acts { margin-left: auto; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.ap-move select, #ap-range {
+  appearance: none; -webkit-appearance: none; padding-right: 26px !important;
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 15px) 52%, calc(100% - 10px) 52%; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat;
+}
 .ap-move select {
   height: 30px; padding: 0 8px; border: 1px solid var(--divider); border-radius: 8px;
-  background: transparent; color: var(--muted); font: 13px var(--ui); cursor: pointer;
+  background-color: transparent; color: var(--muted); font: 13px var(--ui); cursor: pointer;
 }
 .ap-card h3 { margin: 10px 0 4px; font: bold 18px/1.3 var(--serif); }
 .ap-meta { margin: 0; display: flex; gap: 8px; flex-wrap: wrap; align-items: baseline; color: var(--muted); font-size: 13.5px; }
@@ -222,3 +227,6 @@ a.ap-file:hover { border-color: var(--accent); color: var(--text); }
   font: 14px/1 var(--ui); text-decoration: none;
 }
 .ap-back:hover { background: var(--raised); color: var(--text); }
+
+/* a dot left at the end of a wrapped line looks like a mistake: on narrow screens use spacing */
+@media (max-width: 560px) { .ap-dot { display: none; } .ap-meta { gap: 2px 12px; } }

@@ -411,8 +411,8 @@ function card(post) {
     `<label class="ap-move" title="Move to another section"><select data-move="${esc(post.id)}" aria-label="Section">${move}</select></label>` +
     `<button class="ap-btn${done ? "" : " strong"}" data-done="${esc(post.id)}">${done ? "Undo" : "Mark done"}</button></div></div>` +
     `<h3>${esc(post.title || "(no title)")}</h3>` +
-    `<p class="ap-meta">${post.author ? `${avatar(post)}<b>${esc(post.author)}</b><span>&middot;</span>` : ""}` +
-    `<span>${esc(shortClass(post.courseName))}</span><span>&middot;</span><span>${esc(friendly(when(post)))}</span></p>` +
+    `<p class="ap-meta">${post.author ? `${avatar(post)}<b>${esc(post.author)}</b><span class="ap-dot">&middot;</span>` : ""}` +
+    `<span>${esc(shortClass(post.courseName))}</span><span class="ap-dot">&middot;</span><span>${esc(friendly(when(post)))}</span></p>` +
     (due ? `<p class="ap-due${due.late ? " late" : ""}">${esc(due.text)}</p>` : "") +
     (post.body ? `<div class="ap-body${long && !open ? " clamp" : ""}">${linkify(post.body)}</div>` : "") +
     (long ? `<button class="ap-more" data-more="${esc(post.id)}">${open ? "Show less" : "Show more"}</button>` : "") +
