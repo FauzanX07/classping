@@ -3,12 +3,12 @@
 // requests that leave it go to Google.
 
 // The ?v= below goes up with the one on app.js in index.html, so a new deploy never mixes old and new files.
-import * as auth from "./auth.js?v=12";
-import * as api from "./api.js?v=12";
-import * as store from "./store.js?v=12";
-import { classify } from "./sort.js?v=12";
-import { sample } from "./demo.js?v=12";
-import { SYNC_EVERY_MS, FIRST_READ_MOST, REFRESH_READ_MOST, SUPPORT_EMAIL } from "./config.js?v=12";
+import * as auth from "./auth.js?v=13";
+import * as api from "./api.js?v=13";
+import * as store from "./store.js?v=13";
+import { classify } from "./sort.js?v=13";
+import { sample } from "./demo.js?v=13";
+import { SYNC_EVERY_MS, FIRST_READ_MOST, REFRESH_READ_MOST, SUPPORT_EMAIL, TERMS_VERSION } from "./config.js?v=13";
 
 const SECTIONS = ["Homework", "Classwork", "Important", "Extra", "Notes"];
 const KIND_LABEL = { announcement: "Announcement", assignment: "Assignment", material: "Material", question: "Question" };
@@ -402,7 +402,11 @@ async function startOver() {
     limit: PAGE, seenAtLoad: new Set(), expanded: new Set(), pick: { start: "", tick: "", back: "" } });
 }
 
+// Has this person agreed to the current terms and privacy policy?
+function termsOk() { return store.prefs().terms === TERMS_VERSION; }
+
 async function connect(prompt = "") {
+  if (!termsOk()) { S.error = "Please agree to the Terms of service and the Privacy policy first."; paintAll(); return; }
   S.error = "";
   S.connecting = true;
   paintAll();
@@ -676,11 +680,16 @@ function paintBanner() {
   const holder = $("#ap-banner");
   if (!holder) return;
   let html = "";
+  if (!termsOk() && !S.demo) {
+    html = `<div class="ap-note-bar"><span>Please read the <a href="../terms.html" target="_blank" rel="noopener">Terms of service</a> and the ` +
+      `<a href="../privacy.html" target="_blank" rel="noopener">Privacy policy</a>, then agree to carry on.</span>` +
+      `<button class="ap-btn strong" data-act="agree">I agree</button></div>`;
+  }
   if (S.demo) {
-    html = `<div class="ap-note-bar"><span>These are made-up sample posts, not your Classroom.</span>` +
+    html += `<div class="ap-note-bar"><span>These are made-up sample posts, not your Classroom.</span>` +
       (auth.configured() ? `<button class="ap-btn strong" data-act="signin">Sign in with Google</button>` : "") + `</div>`;
   } else if (S.needSignIn && S.posts.length) {
-    html = `<div class="ap-note-bar warn"><span>You are signed out for now. The posts below are saved in this browser.</span>` +
+    html += `<div class="ap-note-bar warn"><span>You are signed out for now. The posts below are saved in this browser.</span>` +
       `<button class="ap-btn strong" data-act="signin">Sign in to refresh</button></div>`;
   }
   if (!S.demo && S.view !== "settings" && S.marks.firstSync && !S.marks.askedOld && oldOptions(false).length) {
@@ -694,7 +703,7 @@ function paintBanner() {
 }
 
 function googleButton(label) {
-  return `<button class="ap-google" data-act="signin"${S.connecting || S.syncing ? " disabled" : ""}><svg viewBox="0 0 48 48" aria-hidden="true">` +
+  return `<button class="ap-google" data-act="signin"${S.connecting || S.syncing || !termsOk() ? " disabled" : ""}><svg viewBox="0 0 48 48" aria-hidden="true">` +
     `<path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>` +
     `<path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>` +
     `<path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>` +
@@ -712,10 +721,13 @@ function welcome() {
     `<ul><li>Read-only: it never posts, edits or deletes anything in Classroom.</li>` +
     `<li>Everything stays in this browser. There is no Class Ping server and no account.</li>` +
     `<li>Google's own page signs you in. Class Ping never sees your password.</li></ul>` +
+    `<label class="ap-agree"><input type="checkbox" id="ap-agree"${termsOk() ? " checked" : ""}><span>I have read and agree to the ` +
+    `<a href="../terms.html" target="_blank" rel="noopener">Terms of service</a> and the ` +
+    `<a href="../privacy.html" target="_blank" rel="noopener">Privacy policy</a>.</span></label>` +
     (ready ? googleButton(S.connecting ? "Waiting for Google..." : S.syncing ? (S.status || "Reading your Classroom...") : "Sign in with Google")
       : `<p class="ap-warn-text">Sign-in is not switched on for this site yet.</p>`) +
-    (ready ? `<button class="ap-link" data-act="other">Use a different Google account</button>` : "") +
-    `<button class="ap-btn wide" data-act="demo">Try it with sample posts</button>` +
+    (ready ? `<button class="ap-link" data-act="other"${termsOk() ? "" : " disabled"}>Use a different Google account</button>` : "") +
+    `<button class="ap-btn wide" data-act="demo"${termsOk() ? "" : " disabled"}>Try it with sample posts</button>` +
     (S.error ? `<p class="ap-warn-text">${esc(S.error)}</p>` : "") +
     `<p class="small">A web page can only notify you while it is open. For alerts all day, even with the browser closed, use <a href="../download.html">the Windows app</a>. ` +
     `<a href="../privacy.html">Privacy</a> &middot; <a href="../terms.html">Terms</a> &middot; <a href="../privacy.html#google-sign-in">Where your password goes</a></p>` +
@@ -871,6 +883,7 @@ function wire() {
     if (t.id === "ap-menu") { if (S.drawer) closeDrawer(true); else openDrawer(); return; }
     if (t.id === "ap-scrim") { closeDrawer(false); return; }
     const act = t.dataset.act;
+    if (act === "agree") { store.savePrefs({ terms: TERMS_VERSION }); paintAll(); return; }
     if (act === "signin") connect();
     else if (act === "switch" || act === "other") connect("select_account");
     else if (act === "signout") signOutAndErase();
@@ -900,6 +913,7 @@ function wire() {
     if (t.id === "ap-old-start") { S.pick.start = t.value; return; }
     if (t.id === "ap-bulk-tick") { S.pick.tick = t.value; return; }
     if (t.id === "ap-bulk-back") { S.pick.back = t.value; return; }
+    if (t.id === "ap-agree") { S.error = ""; store.savePrefs({ terms: t.checked ? TERMS_VERSION : "" }); paintAll(); return; }
     if (t.id === "ap-done") { S.showDone = t.checked; S.limit = PAGE; store.savePrefs({ showDone: S.showDone }); paintAll(); return; }
     if (t.name === "theme") { setTheme(t.value); return; }
     if (t.id === "ap-notify") {

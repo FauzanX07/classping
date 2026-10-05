@@ -24,6 +24,9 @@ export const ALIASES = {
 // Without these three there is nothing to show.
 export const ESSENTIAL = SCOPES.slice(0, 3);
 
+// The date the terms and privacy policy last changed (their "Last updated" line). Changing it
+// asks everyone to agree again.
+export const TERMS_VERSION = "2026-10-05";
 export const SUPPORT_EMAIL = "classpingsupport@gmail.com";
 export const SYNC_EVERY_MS = 3 * 60 * 1000;     // while the page is open and signed in
 export const FIRST_READ_MOST = 150;              // posts per list on the first read

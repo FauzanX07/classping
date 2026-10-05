@@ -125,7 +125,7 @@ export async function wipe() {
 // Small preferences live in localStorage; every access is guarded because it
 // can be blocked (private windows, strict settings).
 const PREFS = "classping-web-prefs";
-const DEFAULT_PREFS = { notify: false, range: "any", showDone: false, email: "" };
+const DEFAULT_PREFS = { notify: false, range: "any", showDone: false, email: "", terms: "" };
 
 export function prefs() {
   try { return { ...DEFAULT_PREFS, ...(JSON.parse(localStorage.getItem(PREFS) || "{}") || {}) }; }
