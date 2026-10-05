@@ -96,7 +96,7 @@ a:hover { text-decoration-thickness: 2px; }
   white-space: nowrap;
 }
 .top nav a:hover { background: var(--hover); }
-.top nav a[aria-current="page"] { font-weight: 600; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 8px; }
+.top nav a[aria-current="page"] { font-weight: 600; background: var(--sel); }
 .top nav a.nav-settings { gap: 7px; }
 .top nav a.nav-settings svg { width: 16px; height: 16px; flex: none; }
 
@@ -208,10 +208,11 @@ code { font-family: var(--mono); font-size: 14px; background: var(--raised); pad
 footer { border-top: 1px solid var(--divider); background: var(--sidebar); color: var(--muted); font-size: 14px; }
 footer .wrap { padding-top: 24px; padding-bottom: 28px; display: flex; justify-content: space-between; gap: 32px; }
 footer p { margin: 0 0 6px; max-width: 560px; }
-footer a { color: var(--link); display: inline-block; padding: 6px 2px; }
-.foot-links { display: flex; flex-wrap: wrap; gap: 8px 18px; white-space: nowrap; }
+footer a { color: var(--link); display: inline-block; padding: 6px 0; text-decoration: none; }
+footer a:hover, footer a:focus-visible, .toc a:hover, .toc a:focus-visible { text-decoration: underline; }
+.foot-links { display: flex; flex-wrap: wrap; gap: 8px 18px; white-space: nowrap; margin-top: -6px; }
 .copyright { color: var(--text); }
-.toc a { display: inline-block; padding: 5px 0; }
+.toc a { display: inline-block; padding: 5px 0; text-decoration: none; }
 
 /* -- inner pages: a heading, then the content -- */
 .page-intro { padding: 48px 0 28px; }
@@ -349,6 +350,7 @@ footer a { color: var(--link); display: inline-block; padding: 6px 2px; }
   .split { grid-template-columns: 1fr; gap: 16px; }
   .themes { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   footer .wrap { flex-direction: column; gap: 12px; }
+  .foot-links { margin-top: 0; }
 }
 @media (min-width: 761px) and (max-width: 940px) {
   .top nav { gap: 0; }
@@ -439,7 +441,8 @@ footer a { color: var(--link); display: inline-block; padding: 6px 2px; }
 /* -- text size and links, from Settings -- */
 :root[data-text="small"] body { zoom: 0.9; }
 :root[data-text="large"] body { zoom: 1.15; }
-:root[data-links="underline"] main a:not(.button) { text-decoration: underline; }
+/* only links inside running text; buttons, tiles, nav rows and link lists stay plain */
+:root[data-links="underline"] main a:not(.button):not(.ap-btn):not(.ap-nav):not(.ap-file):not(.ap-back):not(.ap-brand):not(.ap-linkrow a):not(.toc a) { text-decoration: underline; }
 
 /* -- the looks that can be chosen in Settings. "Light" is the default tokens above. -- */
 :root[data-theme="light"] { color-scheme: light; }

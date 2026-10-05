@@ -2,9 +2,14 @@
    --sidebar, --accent ... for every look). A grey sidebar, a white page, 4px corners, posts as
    rows with a hairline between them. Round only: switches, avatars and class dots. */
 
+html { scrollbar-gutter: stable; }
 html, body { height: 100%; }
 body { margin: 0; font: 15px/1.5 var(--ui); background: var(--bg); color: var(--text); }
 [hidden] { display: none !important; }
+/* Button-like links, nav rows and tiles are never underlined (not even with "Underline every link" on);
+   only links inside running text are, and a link row gets one on hover or focus. */
+a.ap-btn, a.ap-nav, a.ap-brand, a.ap-file, a.ap-back { text-decoration: none; }
+a.ap-btn:hover, a.ap-nav:hover, a.ap-brand:hover, a.ap-file:hover, a.ap-back:hover { text-decoration: none; }
 
 .ap {
   --ap-side: 256px;
@@ -39,7 +44,7 @@ body { margin: 0; font: 15px/1.5 var(--ui); background: var(--bg); color: var(--
 .ap-btn.wide { width: auto; height: 36px; margin-top: 14px; }
 .ap-btn:disabled { opacity: 0.6; cursor: default; }
 
-#ap-nav { display: flex; flex-direction: column; gap: 1px; }
+#ap-nav { display: flex; flex-direction: column; gap: 1px; flex: 1 1 auto; min-height: 120px; overflow-y: auto; overflow-x: hidden; }
 .ap-nav {
   display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; min-height: 32px; padding: 5px 10px;
   border: 0; border-radius: var(--r); background: transparent;
@@ -49,17 +54,25 @@ body { margin: 0; font: 15px/1.5 var(--ui); background: var(--bg); color: var(--
 .ap-nav span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ap-nav em { font-style: normal; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
 .ap-nav:hover { background: var(--hover); }
+.ap-nav:focus-visible { outline-offset: -2px; }
 .ap-nav.on { background: var(--sel); font-weight: 600; }
 .ap-nav.on em { color: var(--text); }
-.ap-heading { margin: 14px 10px 4px; font: 600 12px/1.2 var(--ui); color: var(--muted); }
+.ap-heading { margin: 16px 10px 4px; font: 600 13px/1.2 var(--ui); color: var(--muted); }
+.ap-heading:first-child { margin-top: 4px; }
 .ap-class i { flex: none; width: 9px; height: 9px; border-radius: 50%; margin-right: 0; }
-.ap-side-foot { margin-top: auto; padding-top: 14px; }
-#ap-foot { padding: 0 10px 8px; color: var(--muted); font-size: 12.5px; }
-#ap-foot p { margin: 0 0 3px; }
+.ap-side-foot { flex: none; margin-top: 6px; padding-top: 8px; }
+#ap-foot { padding: 0 10px 6px; color: var(--muted); font-size: 12.5px; }
+#ap-foot p { margin: 0 0 2px; }
+.ap-legal { margin: 2px 0 0; padding: 4px 10px 0; font-size: 12px; line-height: 1.2; color: var(--muted); }
+.ap-legal a { display: inline-block; padding: 4px 0; color: var(--muted); text-decoration: none; }
+.ap-legal a:hover, .ap-legal a:focus-visible { color: var(--text); text-decoration: underline; }
+.ap-legal i { font-style: normal; padding: 0 5px; color: var(--faint); }
+/* a very short window: the whole sidebar scrolls instead of squeezing the list */
+@media (max-height: 420px) { #ap-nav { flex: none; overflow: visible; min-height: 0; } }
 
 /* -- page -------------------------------------------------------------------------------- */
 .ap-main { min-width: 0; }
-#ap-page { max-width: 940px; margin: 0; padding: 24px 32px 80px; }
+#ap-page { max-width: 944px; margin: 0 auto; padding: 24px 32px 80px; }
 .ap-head { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 4px 16px; }
 .ap-head h1 { margin: 0; font: 600 26px/1.2 var(--ui); }
 .ap-head p { margin: 0; color: var(--muted); font-size: 13.5px; }
@@ -113,9 +126,11 @@ body { margin: 0; font: 15px/1.5 var(--ui); background: var(--bg); color: var(--
 .ap-card h3 { margin: 0; font: 600 16px/1.35 var(--ui); overflow-wrap: anywhere; }
 .ap-new { display: inline-block; margin-left: 6px; padding: 2px 5px; border: 1px solid var(--text); border-radius: 3px; font: 600 11px/1 var(--ui); vertical-align: 2px; }
 .ap-acts { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
-.ap-meta { margin: 2px 0 0; display: flex; gap: 4px 8px; flex-wrap: wrap; align-items: center; color: var(--muted); font-size: 13.5px; }
+.ap-meta { margin: 2px 0 0; overflow: hidden; color: var(--muted); font-size: 13.5px; }
+.ap-meta > div { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 0; margin-left: -16px; }
+.ap-meta > div > span { position: relative; display: inline-flex; align-items: center; gap: 6px; padding-left: 16px; }
+.ap-meta > div > span::before { content: "\B7"; position: absolute; left: 5px; color: var(--faint); }
 .ap-meta b { color: var(--text); font-weight: 600; }
-.ap-dot { color: var(--faint); }
 .ap-due { margin: 4px 0 0; color: var(--due); font-weight: 600; font-size: 13.5px; }
 .ap-due.late { color: var(--warn); }
 .ap-body { margin: 8px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14.5px; line-height: 1.55; }
@@ -134,7 +149,8 @@ a.ap-file:hover { border-color: var(--edge); color: var(--text); }
 }
 .ap-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .ap-thumb b { font: 600 11px/1 var(--ui); }
-.ap-fname { flex: 1; min-width: 0; font-size: 13.5px; line-height: 1.3; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.ap-ftext { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.ap-fname { font-size: 13.5px; line-height: 1.3; overflow: hidden; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .ap-fkind { font: 600 11px/1 var(--ui); color: var(--muted); }
 
 .ap-empty { padding: 36px 0; color: var(--muted); }
@@ -173,7 +189,18 @@ a.ap-file:hover { border-color: var(--edge); color: var(--text); }
 .ap-row small { display: block; color: var(--muted); font-size: 13px; }
 .ap-rowbtns { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .ap-row.gap { margin-top: 16px; }
-#ap-notify { width: 20px; height: 20px; accent-color: var(--accent); }
+.ap-linkrow { display: flex; flex-wrap: wrap; align-items: center; gap: 0 4px; }
+.ap-linkrow a { display: inline-block; padding: 4px 0; text-decoration: none; }
+.ap-linkrow a:hover, .ap-linkrow a:focus-visible { text-decoration: underline; }
+.ap-wcard .ap-linkrow { margin-top: 4px; }
+.ap-linkrow i { font-style: normal; color: var(--faint); }
+/* the notify checkbox is the same switch as "Show done" */
+#ap-notify { appearance: none; -webkit-appearance: none; flex: none; position: relative; width: 34px; height: 20px; margin: 0; border-radius: 10px; background: var(--card); border: 1px solid var(--edge); cursor: pointer; }
+#ap-notify::after { content: ""; position: absolute; top: 3px; left: 3px; width: 12px; height: 12px; border-radius: 50%; background: var(--muted); transition: transform 0.15s ease; }
+#ap-notify:checked { background: var(--accent); border-color: var(--accent); }
+#ap-notify:checked::after { transform: translateX(14px); background: var(--accent-text); }
+#ap-notify:disabled { opacity: 0.5; cursor: default; }
+label.ap-row:has(#ap-notify:not(:disabled)) { cursor: pointer; }
 .ap-themes { display: grid; grid-template-columns: repeat(auto-fill, minmax(138px, 1fr)); gap: 8px; }
 .ap-choice { position: relative; display: block; padding: 8px; border: 2px solid var(--divider); border-radius: var(--r); cursor: pointer; }
 .ap-choice:hover { border-color: var(--edge); }
@@ -219,6 +246,11 @@ a.ap-file:hover { border-color: var(--edge); color: var(--text); }
   .ap-google { height: 44px; }
   .ap-switch { min-height: 44px; }
   .ap-back { min-height: 44px; }
+  .ap-brand { min-height: 44px; }
+  .ap-legal a, .ap-linkrow a { min-height: 44px; display: inline-flex; align-items: center; }
+  /* on a phone the whole drawer scrolls (the rows are tall), with the footer after the list */
+  #ap-nav { flex: none; overflow: visible; min-height: 0; }
+  .ap-side-foot { margin-top: auto; }
 }
 
 /* -- teacher pictures: initials, with the photo laid over them when Google gives one ----------- */
@@ -234,7 +266,7 @@ a.ap-file:hover { border-color: var(--edge); color: var(--text); }
 .ap-link:disabled, .ap-btn:disabled { opacity: 0.55; cursor: not-allowed; }
 .ap-link { display: block; margin: 10px 0 0; padding: 4px 0; border: 0; background: none; color: var(--link); font: 14px var(--ui); cursor: pointer; }
 .ap-link:hover { text-decoration: underline; }
-.ap-wcard .ap-btn.wide { width: 100%; margin-top: 10px; }
+.ap-wcard .ap-btn.wide { width: 100%; height: 40px; margin-top: 10px; }
 
 /* A way back to the site from the welcome screen, which hides the sidebar. */
 .ap-back {
@@ -244,8 +276,6 @@ a.ap-file:hover { border-color: var(--edge); color: var(--text); }
 }
 .ap-back:hover { background: color-mix(in srgb, var(--text) 7%, var(--card)); }
 
-/* a dot left at the end of a wrapped line looks like a mistake: on narrow screens use spacing */
-@media (max-width: 560px) { .ap-dot { display: none; } .ap-meta { gap: 2px 12px; } }
 
 /* -- motion: short, opacity and transform only (the one exception is a row closing up after it is ticked off) -- */
 @keyframes ap-rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }

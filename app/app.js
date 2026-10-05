@@ -3,12 +3,12 @@
 // requests that leave it go to Google.
 
 // The ?v= below goes up with the one on app.js in index.html, so a new deploy never mixes old and new files.
-import * as auth from "./auth.js?v=14";
-import * as api from "./api.js?v=14";
-import * as store from "./store.js?v=14";
-import { classify } from "./sort.js?v=14";
-import { sample } from "./demo.js?v=14";
-import { SYNC_EVERY_MS, FIRST_READ_MOST, REFRESH_READ_MOST, SUPPORT_EMAIL, TERMS_VERSION } from "./config.js?v=14";
+import * as auth from "./auth.js?v=15";
+import * as api from "./api.js?v=15";
+import * as store from "./store.js?v=15";
+import { classify } from "./sort.js?v=15";
+import { sample } from "./demo.js?v=15";
+import { SYNC_EVERY_MS, FIRST_READ_MOST, REFRESH_READ_MOST, SUPPORT_EMAIL, TERMS_VERSION } from "./config.js?v=15";
 
 const SECTIONS = ["Homework", "Classwork", "Important", "Extra", "Notes"];
 const KIND_LABEL = { announcement: "Announcement", assignment: "Assignment", material: "Material", question: "Question" };
@@ -282,6 +282,10 @@ function explain(error) {
   if (/admin|access_not_configured|org_internal|restricted_client/i.test(code + " " + text)) {
     return "Google says your school's admin needs to review Class Ping, so it has not been approved there yet. Try a personal Google account, or use the Windows app's Full features.";
   }
+  const status = error && error.status;
+  if (status === 429) return "Google says Class Ping is asking too often. Wait a minute and press Check now.";
+  if (status >= 500) return "Google could not answer just now. Try again in a moment.";
+  if (/failed to fetch|networkerror|load failed/i.test(text)) return "Could not reach Google. Check your connection and press Check now.";
   return text || "Something went wrong.";
 }
 
@@ -461,8 +465,9 @@ async function signOutAndErase() {
   clearTimeout(saving); saving = 0;
   const gone = auth.signOut();                 // Google can be slow to answer; the page is cleared meanwhile
   store.forgetPrefs();
-  Object.assign(S, { posts: [], courses: [], names: {}, lastSync: "", email: "", needSignIn: false, demo: false, error: "",
-    syncing: false, connecting: false, marks: noMarks(), view: "todo", q: "", course: "any", range: "any" });
+  Object.assign(S, { posts: [], courses: [], names: {}, lastSync: "", email: "", needSignIn: false, demo: false, error: "", bulkNote: "", status: "",
+    syncing: false, connecting: false, marks: noMarks(), view: "todo", q: "", course: "any", range: "any", limit: PAGE, showDone: false,
+    seenAtLoad: new Set(), expanded: new Set(), pick: { start: "", tick: "", back: "" }, drawer: false });
   paintAll();
   await store.wipe();
   await Promise.race([gone, new Promise((resolve) => setTimeout(resolve, 6000))]);
@@ -532,7 +537,7 @@ function paintNav() {
     html += `<button class="ap-nav" data-course="any"${S.course === "any" ? ' aria-current="true"' : ""}><span>All classes</span></button>`;
     for (const course of S.courses) {
       const n = S.posts.filter((p) => p.courseId === course.id && (S.showDone || !isDone(p))).length;
-      html += `<button class="ap-nav ap-class${S.course === course.id ? " on" : ""}" data-course="${esc(course.id)}">` +
+      html += `<button class="ap-nav ap-class${S.course === course.id ? " on" : ""}" data-course="${esc(course.id)}"${S.course === course.id ? ' aria-current="true"' : ""}>` +
         `<i style="background:${colourFor(shortClass(course.name))}" aria-hidden="true"></i><span>${esc(shortClass(course.name))}</span><em>${n || ""}</em></button>`;
     }
   }
@@ -541,7 +546,7 @@ function paintNav() {
   if (foot) {
     const done = S.posts.filter(isDone).length;
     foot.innerHTML = `<p id="ap-status">${esc(S.status || (S.lastSync ? "checked " + friendly(S.lastSync) : "not checked yet"))}</p>` +
-      `<p>${S.posts.length} posts &middot; ${done} done</p>`;
+      `<p>${S.posts.length} post${S.posts.length === 1 ? "" : "s"} &middot; ${done} done</p>`;
   }
   const gear = $("#ap-settings");
   if (gear) gear.classList.toggle("on", settings);
@@ -564,12 +569,14 @@ function linkify(text) {
 
 function fileTile(file) {
   const badge = FILE_BADGE[file.kind] || "FILE";
-  const picture = safeUrl(file.thumb) ? `<img src="${esc(safeUrl(file.thumb))}" alt="" loading="lazy" referrerpolicy="no-referrer">` : `<b>${badge}</b>`;
+  // The type is said once: in the picture's place when there is no picture, under the name when there is.
+  const hasPicture = Boolean(safeUrl(file.thumb));
+  const picture = hasPicture ? `<img src="${esc(safeUrl(file.thumb))}" alt="" loading="lazy" referrerpolicy="no-referrer">` : `<b>${badge}</b>`;
   const href = safeUrl(file.url);
   const tag = href ? "a" : "span";
   const link = href ? ` href="${esc(href)}" target="_blank" rel="noopener noreferrer"` : "";
-  return `<${tag} class="ap-file"${link}><span class="ap-thumb">${picture}</span><span class="ap-fname">${esc(file.name)}</span>` +
-    `<span class="ap-fkind">${badge}</span></${tag}>`;
+  return `<${tag} class="ap-file"${link}><span class="ap-thumb">${picture}</span><span class="ap-ftext"><span class="ap-fname">${esc(file.name)}</span>` +
+    `${hasPicture ? `<span class="ap-fkind">${badge}</span>` : ""}</span></${tag}>`;
 }
 
 // A person with no picture gets their initials on a colour worked out from their name,
@@ -606,12 +613,11 @@ function card(post, index = 0) {
   const move = SECTIONS.map((s) => `<option${s === section ? " selected" : ""}>${s}</option>`).join("");
   const link = safeUrl(post.link);
   const stagger = S.enter && index < 8 ? ` style="--i:${index}"` : "";
-  const dot = `<span class="ap-dot">&middot;</span>`;
   return `<article class="ap-card${done ? " done" : ""}${fresh ? " fresh" : ""}${S.popped === post.id ? " popped" : ""}" data-id="${esc(post.id)}"${stagger}>` +
     `<div class="ap-text"><h3>${esc(title)}${fresh ? `<span class="ap-new">New</span>` : ""}</h3>` +
-    `<p class="ap-meta"><span>${KIND_LABEL[post.kind] || "Post"}</span>${dot}` +
-    `${post.author ? `${avatar(post)}<b>${esc(post.author)}</b>${dot}` : ""}` +
-    `<span>${esc(shortClass(post.courseName))}</span>${dot}<span>${esc(friendly(when(post)))}</span></p>` +
+    `<div class="ap-meta"><div><span>${KIND_LABEL[post.kind] || "Post"}</span>` +
+    `${post.author ? `<span>${avatar(post)}<b>${esc(post.author)}</b></span>` : ""}` +
+    `<span>${esc(shortClass(post.courseName))}</span><span>${esc(friendly(when(post)))}</span></div></div>` +
     (due ? `<p class="ap-due${due.late ? " late" : ""}">${esc(due.text)}</p>` : "") +
     (post.body ? `<div class="ap-body${long && !open ? " clamp" : ""}">${linkify(post.body)}</div>` : "") +
     (long ? `<button class="ap-more" data-more="${esc(post.id)}" aria-expanded="${open}">${open ? "Show less" : "Show more"}</button>` : "") +
@@ -629,7 +635,7 @@ function paintHead() {
   if (S.view === "settings") { title.textContent = "Settings"; note.textContent = "Everything here is saved in this browser."; return; }
   const rows = list(S.view);
   title.textContent = S.view === "todo" ? "To-Do" : S.view === "all" ? "All posts" : S.view;
-  const bits = [S.view === "todo" ? (rows.length ? `${rows.length} thing${rows.length === 1 ? "" : "s"} to do` : "Nothing to do")
+  const bits = [S.view === "todo" ? (rows.length ? `${rows.length} thing${rows.length === 1 ? "" : "s"} to do` : S.q ? "No matches" : "Nothing to do")
     : `${rows.length} post${rows.length === 1 ? "" : "s"}`];
   if (S.course !== "any") { const c = S.courses.find((x) => x.id === S.course); if (c) bits.push(shortClass(c.name)); }
   if (S.range !== "any") bits.push(RANGES.find((r) => r[0] === S.range)[1]);
@@ -651,7 +657,8 @@ function paintTools() {
 
 function emptyText() {
   if (S.q) return ["Nothing matches", "No post has all of those words."];
-  if (S.view === "todo") return ["You're all caught up", "Nothing left to do. Every task is marked done."];
+  if (S.course !== "any" || S.range !== "any") return ["Nothing here", "No posts match the class or time you picked."];
+  if (S.view === "todo") return S.posts.some((p) => !isDone(p) && sectionOf(p) === "Homework") ? ["Nothing here", "No homework matches what you picked."] : ["You're all caught up", "Nothing left to do. Every task is marked done."];
   return ["Nothing here", "No posts in this list yet."];
 }
 
@@ -725,7 +732,7 @@ function welcome() {
     `<button class="ap-btn wide" data-act="demo"${termsOk() ? "" : " disabled"}>Try it with sample posts</button>` +
     (S.error ? `<p class="ap-warn-text">${esc(S.error)}</p>` : "") +
     `<p class="small">A web page can only notify you while it is open. For alerts all day, even with the browser closed, use <a href="../download.html">the Windows app</a>. ` +
-    `<a href="../privacy.html">Privacy</a> &middot; <a href="../terms.html">Terms</a> &middot; <a href="../privacy.html#google-sign-in">Where your password goes</a></p>` +
+    `</p><p class="small ap-linkrow"><a href="../privacy.html">Privacy</a><i>&middot;</i><a href="../terms.html">Terms</a><i>&middot;</i><a href="../privacy.html#google-sign-in">Where your password goes</a></p>` +
     `</div></div>`;
 }
 
@@ -743,7 +750,7 @@ function settings() {
     `<button class="ap-btn" data-act="signout">Sign out and erase</button></div></div></section>` +
     `<section class="ap-set"><h2>Notifications</h2><p>Get a desktop notification when a new post arrives. This only works while this page is open in a tab.</p>` +
     `<label class="ap-row"><div><b>Notify me of new posts</b><small>${perm === "denied" ? "Your browser has blocked notifications for this site." : perm === "unsupported" ? "This browser cannot show notifications." : "Asks your browser's permission first."}</small></div>` +
-    `<input type="checkbox" id="ap-notify"${prefs.notify && perm === "granted" ? " checked" : ""}${perm === "denied" || perm === "unsupported" ? " disabled" : ""}></label>` +
+    `<input type="checkbox" id="ap-notify" role="switch"${prefs.notify && perm === "granted" ? " checked" : ""}${perm === "denied" || perm === "unsupported" ? " disabled" : ""}></label>` +
     `<p class="small">For alerts all day, even with the browser closed, use <a href="../download.html">the Windows app</a>.</p></section>` +
     `<section class="ap-set"><h2>Old work</h2><p>Tick off everything that was posted a while ago so your list does not pile up. New posts are never touched, and nothing is deleted.</p>` +
     `<div class="ap-row"><div><b>Tick off old work</b><small>Marks posts as done, in any section.</small></div><div class="ap-rowbtns">` +
@@ -754,7 +761,7 @@ function settings() {
     `<section class="ap-set"><h2>Appearance</h2><p>Choose a look, or follow your device's light or dark mode.</p><div class="ap-themes">${themes}</div></section>` +
     `<section class="ap-set"><h2>Your data</h2><p>Class Ping keeps your posts, ticks and moves in this browser only. Nothing is sent to us. ` +
     `"Sign out and erase" gives Google's permission back and deletes all of it from this browser.</p>` +
-    `<p class="small"><a href="../privacy.html">Privacy policy</a> &middot; <a href="../terms.html">Terms</a> &middot; <a href="mailto:${SUPPORT_EMAIL}">Contact</a></p></section>`;
+    `<p class="small ap-linkrow"><a href="../privacy.html">Privacy policy</a><i>&middot;</i><a href="../terms.html">Terms</a><i>&middot;</i><a href="mailto:${SUPPORT_EMAIL}">Contact</a></p></section>`;
 }
 
 // A repaint replaces the buttons, so the one that had the keyboard focus is found again afterwards.
@@ -782,10 +789,8 @@ function paintEverything() {
   if (!root) return;
   const showWelcome = !S.demo && !S.posts.length && !S.lastSync && S.view !== "settings";
   root.classList.toggle("welcome-mode", showWelcome);
-  root.classList.toggle("drawer-open", S.drawer);
   root.classList.toggle("busy", S.syncing || S.connecting);
-  const menu = $("#ap-menu");
-  if (menu) menu.setAttribute("aria-expanded", String(S.drawer));
+  syncDrawer();
   if (showWelcome) {
     const had = $("#ap-page .ap-welcome");
     $("#ap-page").innerHTML = welcome();
@@ -815,19 +820,27 @@ function mountPage() {
 
 // -- events ------------------------------------------------------------------------------
 
+// The drawer is open: the page and the Menu bar behind it cannot be reached with the Tab key.
+function syncDrawer() {
+  const root = $("#ap-root");
+  if (!root) return;
+  root.classList.toggle("drawer-open", S.drawer);
+  const menu = $("#ap-menu");
+  if (menu) menu.setAttribute("aria-expanded", String(S.drawer));
+  for (const el of document.querySelectorAll(".ap-main, .ap-bar")) el.inert = S.drawer;
+}
+
 function openDrawer() {
   S.drawer = true;
-  $("#ap-root").classList.add("drawer-open");
-  $("#ap-menu").setAttribute("aria-expanded", "true");
+  syncDrawer();
   const first = $("#ap-check");
   if (first) first.focus({ preventScroll: true });
 }
 
 function closeDrawer(giveFocusBack) {
   S.drawer = false;
-  $("#ap-root").classList.remove("drawer-open");
+  syncDrawer();
   const menu = $("#ap-menu");
-  menu.setAttribute("aria-expanded", "false");
   if (giveFocusBack && menu.offsetParent !== null) menu.focus({ preventScroll: true });
 }
 
@@ -929,6 +942,12 @@ function wire() {
   });
 
   document.addEventListener("keydown", (event) => { if (event.key === "Escape" && S.drawer) closeDrawer(true); });
+  // Widening the window while the menu is open closes it, so nothing is left unreachable.
+  if (window.matchMedia) {
+    const wide = window.matchMedia("(min-width: 861px)");
+    const widened = () => { if (wide.matches && S.drawer) closeDrawer(false); };
+    if (wide.addEventListener) wide.addEventListener("change", widened); else if (wide.addListener) wide.addListener(widened);
+  }
   store.listen(otherTab);
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") { saveNow(); return; }
@@ -977,7 +996,8 @@ function chrome() {
     `<div class="ap-side-foot"><div id="ap-foot"></div>` +
     `<button id="ap-settings" class="ap-nav"><span>Settings</span></button>` +
     `<a class="ap-nav" href="mailto:${SUPPORT_EMAIL}?subject=Class%20Ping%20feedback"><span>Send feedback</span></a>` +
-    `<a class="ap-nav" href="../"><span>Class Ping home</span></a></div></aside>` +
+    `<a class="ap-nav" href="../"><span>Class Ping home</span></a>` +
+    `<p class="ap-legal"><a href="../privacy.html">Privacy</a><i>&middot;</i><a href="../terms.html">Terms</a></p></div></aside>` +
     `<main class="ap-main"><div id="ap-page"></div></main><div id="ap-toasts" aria-live="polite"></div></div>`;
 }
 
