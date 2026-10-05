@@ -6,7 +6,7 @@
 // a new token is asked for when the old one runs low -- quietly, using Google's
 // existing session -- and if Google needs a click, the page says so.
 
-import { CLIENT_ID, SCOPES, ALIASES, ESSENTIAL } from "./config.js?v=13";
+import { CLIENT_ID, SCOPES, ALIASES, ESSENTIAL } from "./config.js?v=14";
 
 const KEEP = "classping-web-token";      // sessionStorage: survives a reload, not a closed tab
 let loading = null;

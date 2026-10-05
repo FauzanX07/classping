@@ -5,8 +5,11 @@
   "use strict";
 
   var KEY = "classping-site-settings";
-  var DEFAULTS = { theme: "system", text: "normal", links: "plain" };
+  // The web app starts in Light for anyone who has not chosen a look; the rest of the site follows the device.
+  var DEFAULTS = { theme: /\/app\/?$|\/app\/index\.html$/.test(location.pathname) ? "light" : "system", text: "normal", links: "plain" };
   var THEMES = [
+    ["light", "Light"],
+    ["graphite", "Graphite"],
     ["system", "Match my device"],
     ["study-lamp", "Evergreen"],
     ["parchment", "Parchment"],
@@ -65,7 +68,7 @@
     holder.innerHTML =
       '<form class="settings-form">' +
         '<section class="settings-group" aria-labelledby="set-look"><h2 id="set-look">Appearance</h2>' +
-          "<p>The same five looks as the app, or follow your device's light or dark mode.</p>" +
+          "<p>Seven looks, or follow your device's light or dark mode.</p>" +
           '<div class="themes" role="radiogroup" aria-labelledby="set-look">' + themes + "</div></section>" +
         '<section class="settings-group" aria-labelledby="set-size"><h2 id="set-size">Text size</h2>' +
           "<p>Make everything on the site a little smaller or larger.</p>" +
@@ -133,7 +136,7 @@
     if (!("IntersectionObserver" in window) || calm) return;
     var below = window.innerHeight - 40;
     var items = [].slice.call(document.querySelectorAll(
-      ".band .section-head, .band .feature, .band .mode, .band .split > *, .band .cta > *"))
+      ".band .section-head, .band .points, .band .mode, .band .split > *, .band .cta > *"))
       .filter(function (el) { return el.getBoundingClientRect().top > below; });
     if (!items.length) return;
     function show(el) {

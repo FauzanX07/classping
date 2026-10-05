@@ -3,20 +3,20 @@
 // requests that leave it go to Google.
 
 // The ?v= below goes up with the one on app.js in index.html, so a new deploy never mixes old and new files.
-import * as auth from "./auth.js?v=13";
-import * as api from "./api.js?v=13";
-import * as store from "./store.js?v=13";
-import { classify } from "./sort.js?v=13";
-import { sample } from "./demo.js?v=13";
-import { SYNC_EVERY_MS, FIRST_READ_MOST, REFRESH_READ_MOST, SUPPORT_EMAIL, TERMS_VERSION } from "./config.js?v=13";
+import * as auth from "./auth.js?v=14";
+import * as api from "./api.js?v=14";
+import * as store from "./store.js?v=14";
+import { classify } from "./sort.js?v=14";
+import { sample } from "./demo.js?v=14";
+import { SYNC_EVERY_MS, FIRST_READ_MOST, REFRESH_READ_MOST, SUPPORT_EMAIL, TERMS_VERSION } from "./config.js?v=14";
 
 const SECTIONS = ["Homework", "Classwork", "Important", "Extra", "Notes"];
 const KIND_LABEL = { announcement: "Announcement", assignment: "Assignment", material: "Material", question: "Question" };
 const FILE_BADGE = { video: "VIDEO", pdf: "PDF", doc: "DOC", sheet: "SHEET", slides: "SLIDES", image: "IMAGE", form: "FORM", link: "LINK", file: "FILE" };
 const RANGES = [["any", "All time"], ["today", "Today"], ["yesterday", "Yesterday"], ["20days", "Last 20 days"]];
 const PAGE = 30;
-const THEMES = [["system", "Match my device"], ["study-lamp", "Evergreen"], ["parchment", "Parchment"],
-  ["chalkboard", "Chalkboard"], ["midnight-ink", "Midnight Ink"], ["ebony", "Ebony"]];
+const THEMES = [["light", "Light"], ["graphite", "Graphite"], ["system", "Match my device"], ["study-lamp", "Evergreen"],
+  ["parchment", "Parchment"], ["chalkboard", "Chalkboard"], ["midnight-ink", "Midnight Ink"], ["ebony", "Ebony"]];
 const SITE_PREFS = "classping-site-settings";      // the same key the rest of the site uses
 
 const S = {
@@ -70,11 +70,6 @@ function dueText(iso) {
   const late = d.getTime() < Date.now();
   return { text: (late ? "Was due " : "Due ") + friendly(iso).replace(/^Today/, "today").replace(/^Tomorrow/, "tomorrow").replace(/^Yesterday/, "yesterday"), late };
 }
-
-const greeting = () => {
-  const h = new Date().getHours();
-  return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
-};
 
 function inRange(post, range) {
   if (range === "any") return true;
@@ -475,9 +470,10 @@ async function signOutAndErase() {
 
 // -- theme -------------------------------------------------------------------------------
 
+// Light is the look for anyone who has not chosen one (site.js applies it before the first paint).
 function sitePrefs() {
-  try { return { theme: "system", text: "normal", links: "plain", ...(JSON.parse(localStorage.getItem(SITE_PREFS) || "{}") || {}) }; }
-  catch (e) { return { theme: "system", text: "normal", links: "plain" }; }
+  try { return { theme: "light", text: "normal", links: "plain", ...(JSON.parse(localStorage.getItem(SITE_PREFS) || "{}") || {}) }; }
+  catch (e) { return { theme: "light", text: "normal", links: "plain" }; }
 }
 function setTheme(theme) {
   const next = { ...sitePrefs(), theme };
@@ -530,14 +526,14 @@ function paintNav() {
   const settings = S.view === "settings";
   const count = (view) => list(view).length;
   let html = navItem("todo", "To-Do", count("todo")) + navItem("all", "All posts", count("all"));
-  html += `<div class="ap-heading">SECTIONS</div>` + SECTIONS.map((s) => navItem(s, s, count(s))).join("");
+  html += `<div class="ap-heading">Sections</div>` + SECTIONS.map((s) => navItem(s, s, count(s))).join("");
   if (S.courses.length) {
-    html += `<div class="ap-heading">CLASSES</div>`;
-    html += `<button class="ap-nav${S.course === "any" ? " on" : ""}" data-course="any"><span>All classes</span></button>`;
+    html += `<div class="ap-heading">Classes</div>`;
+    html += `<button class="ap-nav" data-course="any"${S.course === "any" ? ' aria-current="true"' : ""}><span>All classes</span></button>`;
     for (const course of S.courses) {
       const n = S.posts.filter((p) => p.courseId === course.id && (S.showDone || !isDone(p))).length;
       html += `<button class="ap-nav ap-class${S.course === course.id ? " on" : ""}" data-course="${esc(course.id)}">` +
-        `<i style="background:${colourFor(shortClass(course.name))}">${esc(shortClass(course.name).charAt(0).toUpperCase())}</i><span>${esc(shortClass(course.name))}</span><em>${n || ""}</em></button>`;
+        `<i style="background:${colourFor(shortClass(course.name))}" aria-hidden="true"></i><span>${esc(shortClass(course.name))}</span><em>${n || ""}</em></button>`;
     }
   }
   holder.innerHTML = html;
@@ -610,20 +606,20 @@ function card(post, index = 0) {
   const move = SECTIONS.map((s) => `<option${s === section ? " selected" : ""}>${s}</option>`).join("");
   const link = safeUrl(post.link);
   const stagger = S.enter && index < 8 ? ` style="--i:${index}"` : "";
+  const dot = `<span class="ap-dot">&middot;</span>`;
   return `<article class="ap-card${done ? " done" : ""}${fresh ? " fresh" : ""}${S.popped === post.id ? " popped" : ""}" data-id="${esc(post.id)}"${stagger}>` +
-    `<div class="ap-top"><span class="ap-pill k-${esc(post.kind)}">${KIND_LABEL[post.kind] || "Post"}</span>` +
-    (fresh ? `<span class="ap-new">New</span>` : "") +
-    `<div class="ap-acts">` +
-    (link ? `<a class="ap-btn" href="${esc(link)}" target="_blank" rel="noopener noreferrer" aria-label="${esc("Open in Classroom: " + title)}">Open</a>` : "") +
-    `<label class="ap-move" title="Move to another section"><select data-move="${esc(post.id)}" aria-label="${esc("Section of: " + title)}">${move}</select></label>` +
-    `<button class="ap-btn${done ? "" : " strong"}" data-done="${esc(post.id)}" aria-label="${esc((done ? "Undo done: " : "Mark done: ") + title)}">${done ? "Undo" : "Mark done"}</button></div></div>` +
-    `<h3>${esc(title)}</h3>` +
-    `<p class="ap-meta">${post.author ? `${avatar(post)}<b>${esc(post.author)}</b><span class="ap-dot">&middot;</span>` : ""}` +
-    `<span>${esc(shortClass(post.courseName))}</span><span class="ap-dot">&middot;</span><span>${esc(friendly(when(post)))}</span></p>` +
+    `<div class="ap-text"><h3>${esc(title)}${fresh ? `<span class="ap-new">New</span>` : ""}</h3>` +
+    `<p class="ap-meta"><span>${KIND_LABEL[post.kind] || "Post"}</span>${dot}` +
+    `${post.author ? `${avatar(post)}<b>${esc(post.author)}</b>${dot}` : ""}` +
+    `<span>${esc(shortClass(post.courseName))}</span>${dot}<span>${esc(friendly(when(post)))}</span></p>` +
     (due ? `<p class="ap-due${due.late ? " late" : ""}">${esc(due.text)}</p>` : "") +
     (post.body ? `<div class="ap-body${long && !open ? " clamp" : ""}">${linkify(post.body)}</div>` : "") +
     (long ? `<button class="ap-more" data-more="${esc(post.id)}" aria-expanded="${open}">${open ? "Show less" : "Show more"}</button>` : "") +
     ((post.files || []).length ? `<div class="ap-files">${post.files.map(fileTile).join("")}</div>` : "") +
+    `</div><div class="ap-acts">` +
+    (link ? `<a class="ap-btn" href="${esc(link)}" target="_blank" rel="noopener noreferrer" aria-label="${esc("Open in Classroom: " + title)}">Open</a>` : "") +
+    `<label class="ap-move" title="Move to another section"><select data-move="${esc(post.id)}" aria-label="${esc("Section of: " + title)}">${move}</select></label>` +
+    `<button class="ap-btn${done ? "" : " strong"}" data-done="${esc(post.id)}" aria-label="${esc((done ? "Undo done: " : "Mark done: ") + title)}">${done ? "Undo" : "Mark done"}</button></div>` +
     `</article>`;
 }
 
@@ -632,13 +628,13 @@ function paintHead() {
   if (!title || !note) return;
   if (S.view === "settings") { title.textContent = "Settings"; note.textContent = "Everything here is saved in this browser."; return; }
   const rows = list(S.view);
-  title.textContent = S.view === "todo" ? greeting() : S.view === "all" ? "All posts" : S.view;
+  title.textContent = S.view === "todo" ? "To-Do" : S.view === "all" ? "All posts" : S.view;
   const bits = [S.view === "todo" ? (rows.length ? `${rows.length} thing${rows.length === 1 ? "" : "s"} to do` : "Nothing to do")
     : `${rows.length} post${rows.length === 1 ? "" : "s"}`];
   if (S.course !== "any") { const c = S.courses.find((x) => x.id === S.course); if (c) bits.push(shortClass(c.name)); }
   if (S.range !== "any") bits.push(RANGES.find((r) => r[0] === S.range)[1]);
   bits.push(S.lastSync ? "checked " + friendly(S.lastSync) : "not checked yet");
-  note.textContent = bits.join("  ·  ");
+  note.textContent = bits.join(" · ");
 }
 
 function paintTools() {
@@ -693,8 +689,7 @@ function paintBanner() {
       `<button class="ap-btn strong" data-act="signin">Sign in to refresh</button></div>`;
   }
   if (!S.demo && S.view !== "settings" && S.marks.firstSync && !S.marks.askedOld && oldOptions(false).length) {
-    html += `<div class="ap-ask"><b>Tick off old work?</b>` +
-      `<p>Some work was posted before you started. Tick it off now so your list does not pile up. New posts stay as they are, and Settings can bring any of it back.</p>` +
+    html += `<div class="ap-ask"><div class="ap-asktext"><b>Tick off old work?</b> Some work was posted before you started. Tick it off now so your list does not pile up. New posts stay as they are, and Settings can bring any of it back.</div>` +
       `<div class="ap-askrow">${oldSelect("ap-old-start", false, S.pick.start, "How much old work to tick off")}` +
       `<button class="ap-btn strong" data-act="old-tick">Tick off</button><button class="ap-btn" data-act="old-keep">Keep all</button></div></div>`;
   }
@@ -714,7 +709,7 @@ function googleButton(label) {
 function welcome() {
   const ready = auth.configured();
   return `<a class="ap-back" href="../">&larr; Class Ping website</a><div class="ap-welcome"><div class="ap-wcard">` +
-    `<img src="../logo-name.png?v=5" alt="Class Ping" width="96" height="96">` +
+    `<img src="../logo-name.png?v=5" alt="Class Ping" width="72" height="72">` +
     `<h1>Class Ping in your browser</h1>` +
     `<p class="lead">Your Google Classroom as a to-do list: homework first, due dates in plain sight, everything sorted into sections.</p>` +
     `<p class="small beta-note">Beta: still being tested, so some bugs are not found yet. <a href="mailto:${SUPPORT_EMAIL}?subject=Class%20Ping%20feedback">Tell us if you meet one.</a></p>` +
@@ -756,7 +751,7 @@ function settings() {
     `<div class="ap-row gap"><div><b>Bring old work back</b><small>Puts ticked-off posts back on your list.</small></div><div class="ap-rowbtns">` +
     `${oldSelect("ap-bulk-back", true, S.pick.back, "How much old work to bring back")}<button class="ap-btn strong" data-act="bulk-back">Untick</button></div></div>` +
     `<p class="small" id="ap-bulk-note" role="status">${esc(S.bulkNote)}</p></section>` +
-    `<section class="ap-set"><h2>Appearance</h2><p>The same five looks as the Windows app.</p><div class="ap-themes">${themes}</div></section>` +
+    `<section class="ap-set"><h2>Appearance</h2><p>Choose a look, or follow your device's light or dark mode.</p><div class="ap-themes">${themes}</div></section>` +
     `<section class="ap-set"><h2>Your data</h2><p>Class Ping keeps your posts, ticks and moves in this browser only. Nothing is sent to us. ` +
     `"Sign out and erase" gives Google's permission back and deletes all of it from this browser.</p>` +
     `<p class="small"><a href="../privacy.html">Privacy policy</a> &middot; <a href="../terms.html">Terms</a> &middot; <a href="mailto:${SUPPORT_EMAIL}">Contact</a></p></section>`;
@@ -801,7 +796,7 @@ function paintEverything() {
   if (!$("#ap-list") && S.view !== "settings") mountPage();
   if (S.view === "settings") {
     const had = $("#ap-page .ap-settings");
-    $("#ap-page").innerHTML = `<header class="ap-head"><div><h1 id="ap-title">Settings</h1><p id="ap-note"></p></div></header><div id="ap-banner"></div><div class="ap-settings${had || calm() ? "" : " enter"}">${settings()}</div>`;
+    $("#ap-page").innerHTML = `<header class="ap-head"><h1 id="ap-title">Settings</h1><p id="ap-note"></p></header><div id="ap-banner"></div><div class="ap-settings${had || calm() ? "" : " enter"}">${settings()}</div>`;
     paintHead(); paintNav(); paintBanner(); paintCheck();
     return;
   }
@@ -811,7 +806,7 @@ function paintEverything() {
 
 function mountPage() {
   $("#ap-page").innerHTML =
-    `<header class="ap-head"><div><h1 id="ap-title"></h1><p id="ap-note"></p></div></header><div id="ap-banner"></div>` +
+    `<header class="ap-head"><h1 id="ap-title"></h1><p id="ap-note"></p></header><div id="ap-banner"></div>` +
     `<div class="ap-tools"><input id="ap-search" type="search" placeholder="Search posts" aria-label="Search posts" value="${esc(S.q)}">` +
     `<select id="ap-range" aria-label="Time range"></select>` +
     `<label class="ap-switch"><input type="checkbox" id="ap-done"><span></span>Show done</label></div>` +
