@@ -14,6 +14,9 @@ export class ApiError extends Error {
   }
 }
 
+// Only web addresses become links or pictures: a javascript: or data: address from a post is dropped.
+const safe = (url) => (/^https?:\/\//i.test(String(url || "")) ? String(url) : "");
+
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function get(path, params, token) {
@@ -69,9 +72,12 @@ export async function profile(userId, token, cache) {
     const data = await get(`userProfiles/${userId}`, {}, token);
     let photo = String(data.photoUrl || "");
     if (photo.startsWith("//")) photo = "https:" + photo;
+    photo = safe(photo);
     cache[userId] = { name: String((data.name && data.name.fullName) || ""), photo };
   } catch (e) {
-    cache[userId] = blank;
+    // Only "no such person" is remembered; a busy or offline moment is tried again next time.
+    if (e && (e.status === 403 || e.status === 404)) cache[userId] = blank;
+    return blank;
   }
   return cache[userId];
 }
@@ -91,8 +97,9 @@ function due(item) {
   if (!d) return null;
   try {
     const t = item.dueTime;
-    if (t) return new Date(Date.UTC(d.year, d.month - 1, d.day, t.hours || 0, t.minutes || 0));
-    return new Date(d.year, d.month - 1, d.day, 23, 59);
+    const date = t ? new Date(Date.UTC(d.year, d.month - 1, d.day, t.hours || 0, t.minutes || 0))
+      : new Date(d.year, d.month - 1, d.day, 23, 59);
+    return isNaN(date) ? null : date;       // an odd date from Classroom must not stop the whole read
   } catch (e) { return null; }
 }
 
@@ -103,14 +110,14 @@ function materials(item) {
   for (const m of item.materials || []) {
     if (m.driveFile) {
       const f = m.driveFile.driveFile || {};
-      out.push({ name: f.title || "Drive file", url: f.alternateLink || "", thumb: "" });
+      out.push({ name: f.title || "Drive file", url: safe(f.alternateLink), thumb: "" });
     } else if (m.youtubeVideo) {
       const v = m.youtubeVideo;
-      out.push({ name: v.title || "YouTube video", url: v.alternateLink || "", thumb: v.thumbnailUrl || "" });
+      out.push({ name: v.title || "YouTube video", url: safe(v.alternateLink), thumb: safe(v.thumbnailUrl) });
     } else if (m.link) {
-      out.push({ name: m.link.title || m.link.url || "Link", url: m.link.url || "", thumb: "" });
+      out.push({ name: m.link.title || m.link.url || "Link", url: safe(m.link.url), thumb: "" });
     } else if (m.form) {
-      out.push({ name: m.form.title || "Google Form", url: m.form.formUrl || "", thumb: "" });
+      out.push({ name: m.form.title || "Google Form", url: safe(m.form.formUrl), thumb: "" });
     }
   }
   return out.filter((a) => a.name || a.url);
@@ -158,7 +165,7 @@ export async function toPost(item, list, course, token, names) {
     body,
     author: who,
     authorPhoto: person.photo,
-    link: String(item.alternateLink || ""),
+    link: safe(item.alternateLink),
     postedAt: posted ? posted.toISOString() : "",
     updatedAt: String(item.updateTime || item.creationTime || ""),
     dueAt: dueAt ? dueAt.toISOString() : "",

@@ -27,4 +27,4 @@ export const ESSENTIAL = SCOPES.slice(0, 3);
 export const SUPPORT_EMAIL = "classpingsupport@gmail.com";
 export const SYNC_EVERY_MS = 3 * 60 * 1000;     // while the page is open and signed in
 export const FIRST_READ_MOST = 150;              // posts per list on the first read
-export const REFRESH_READ_MOST = 30;             // newest posts per list afterwards
+export const REFRESH_READ_MOST = 300;            // most per list afterwards (reading stops at the first post already seen)

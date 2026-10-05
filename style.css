@@ -158,6 +158,8 @@ strong { font-weight: 600; }
 .button.soon:hover { background: transparent; color: var(--muted); }
 .button.quiet { background: transparent; color: var(--text); border: 1px solid var(--divider); }
 .button.quiet:hover { background: var(--raised); }
+.get { display: flex; flex-direction: column; gap: 10px; align-items: stretch; min-width: 220px; }
+.get .button { text-align: center; }
 
 .facts { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 0; margin: 0 0 6px; list-style: none; }
 .facts li { margin: 0; font-size: 14px; color: var(--muted); }

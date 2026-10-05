@@ -23,6 +23,7 @@ const S = {
   posts: [], courses: [], names: {}, marks: { done: {}, moved: {}, seen: {}, firstSync: false },
   email: "", demo: false, lastSync: "", syncing: false, needSignIn: false, error: "", status: "",
   seenAtLoad: new Set(), drawer: false, expanded: new Set(), connecting: false,
+  gen: 0,                                                     // bumps when a different account starts over
   pick: { start: "", tick: "", back: "" }, bulkNote: "",     // the old-work choices and what the last one did
 };
 
@@ -143,7 +144,7 @@ function oldPosts(age, done) {
   return S.posts.filter((p) => {
     if (isDone(p) !== done) return false;
     const t = Date.parse(when(p));
-    return days ? t < edge : t < today || Boolean(S.marks.seen[p.id]);
+    return days ? t < edge && Boolean(S.marks.seen[p.id]) : t < today || Boolean(S.marks.seen[p.id]);
   });
 }
 
@@ -172,16 +173,24 @@ function oldSelect(id, done, picked, label) {
 // -- keeping things ----------------------------------------------------------------------
 
 let saving = 0;
+async function save() {
+  if (S.demo) return;                         // samples are never saved
+  await store.set("posts", S.posts);
+  await store.set("courses", S.courses);
+  await store.set("names", S.names);
+  await store.set("marks", S.marks);
+  await store.set("lastSync", S.lastSync);
+}
 function persist() {
   clearTimeout(saving);
-  saving = setTimeout(async () => {
-    if (S.demo) return;                       // samples are never saved
-    await store.set("posts", S.posts);
-    await store.set("courses", S.courses);
-    await store.set("names", S.names);
-    await store.set("marks", S.marks);
-    await store.set("lastSync", S.lastSync);
-  }, 400);
+  saving = setTimeout(save, 400);
+}
+// A tick followed by closing the tab straight away must still be kept.
+function saveNow() {
+  if (!saving) return;
+  clearTimeout(saving);
+  saving = 0;
+  save();
 }
 
 // -- reading Classroom -------------------------------------------------------------------
@@ -203,26 +212,42 @@ async function sync({ quiet = false } = {}) {
   if (!auth.signedIn()) { S.needSignIn = true; paintAll(); return; }
   S.syncing = true;
   S.error = "";
+  const gen = S.gen;
   paintStatus(quiet ? "" : "Checking Classroom...");
   paintCheck();
   if ($("#ap-root").classList.contains("welcome-mode")) paintAll();   // say so, instead of sitting still
   const first = !S.lastSync;
+  let token = "";
   try {
-    const token = auth.token();
+    token = auth.token();
     const mine = await api.courses(token);
+    if (gen !== S.gen) return;
+    const knownClasses = new Set(S.courses.map((c) => c.id));
     S.courses = mine;
+    if (S.course !== "any" && !mine.some((c) => c.id === S.course)) S.course = "any";
     const since = first ? "" : new Date(Date.parse(S.lastSync) - 3600 * 1000).toISOString();
     const byId = new Map(S.posts.map((p) => [p.id, p]));
     const fresh = [];
     let finished = 0;
     paintStatus(`Reading ${mine.length} class${mine.length === 1 ? "" : "es"}...`);
     // Every class is read at the same time; the first read of a big account takes seconds, not a minute.
+    // One class that cannot be read must not stop the rest. A class you have just joined is read in full.
+    const failed = [];
     const reads = await Promise.all(mine.map(async (course) => {
-      const found = await api.readCourse(course, token, S.names, { since, most: first ? FIRST_READ_MOST : REFRESH_READ_MOST });
-      finished += 1;
-      paintStatus(`Read ${finished} of ${mine.length} class${mine.length === 1 ? "" : "es"}`);
-      return found;
+      const everything = first || !knownClasses.has(course.id);
+      try {
+        const found = await api.readCourse(course, token, S.names, { since: everything ? "" : since, most: everything ? FIRST_READ_MOST : REFRESH_READ_MOST });
+        finished += 1;
+        paintStatus(`Read ${finished} of ${mine.length} class${mine.length === 1 ? "" : "es"}`);
+        return found;
+      } catch (error) {
+        if (error && error.status === 401) throw error;
+        failed.push({ course, error });
+        return [];
+      }
     }));
+    if (gen !== S.gen) return;                  // the account changed while this was reading
+    if (failed.length === mine.length && mine.length) throw failed[0].error;
     for (const found of reads) {
       for (const post of found) {
         sortPost(post);
@@ -230,8 +255,15 @@ async function sync({ quiet = false } = {}) {
         byId.set(post.id, post);
       }
     }
+    // A class you have left, or that was archived, goes too.
+    if (mine.length) for (const [id, p] of byId) if (!mine.some((c) => c.id === p.courseId)) byId.delete(id);
     S.posts = [...byId.values()];
-    S.lastSync = new Date().toISOString();
+    if (!failed.length) {
+      S.lastSync = new Date().toISOString();
+    } else {
+      // Not every class was read: keep the old time, so the next check reads from there again.
+      S.error = `Could not read ${failed.map((f) => shortClass(f.course.name)).join(", ")} just now. It will be tried again.`;
+    }
     S.needSignIn = false;
     if (first) {
       for (const p of S.posts) S.marks.seen[p.id] = 1;        // no backlog of "new" on the first read
@@ -243,8 +275,8 @@ async function sync({ quiet = false } = {}) {
     persist();
   } catch (error) {
     if (error && error.status === 401) {
-      auth.forgetToken();
-      S.needSignIn = true;
+      if (!auth.token() || auth.token() === token) auth.forgetToken();     // not a newer one a click just renewed
+      S.needSignIn = !auth.signedIn();
     } else {
       S.error = explain(error);
     }
@@ -274,6 +306,15 @@ function tell(fresh) {
 
 // -- signing in --------------------------------------------------------------------------
 
+// Everything stored belongs to one Google account. Forget it all (not the look you chose).
+async function startOver() {
+  S.gen += 1;
+  await store.wipe();
+  Object.assign(S, { posts: [], courses: [], names: {}, lastSync: "", needSignIn: false, error: "", bulkNote: "",
+    marks: { done: {}, moved: {}, seen: {}, firstSync: false }, view: "todo", q: "", course: "any", range: "any",
+    limit: PAGE, seenAtLoad: new Set(), expanded: new Set(), pick: { start: "", tick: "", back: "" } });
+}
+
 async function connect(prompt = "") {
   S.error = "";
   S.connecting = true;
@@ -287,7 +328,13 @@ async function connect(prompt = "") {
       return;
     }
     if (S.demo) { S.demo = false; S.posts = []; S.courses = []; S.lastSync = ""; S.marks = { done: {}, moved: {}, seen: {}, firstSync: false }; }
-    try { S.email = (await auth.email()) || S.email; } catch (e) { /* the address is only shown */ }
+    let who = "";
+    try { who = await auth.email(); } catch (e) { /* the address is only shown */ }
+    if (who && S.email && who.toLowerCase() !== S.email.toLowerCase()) {
+      // A different account: the old one's classes, posts and ticks must not stay.
+      await startOver();
+    }
+    S.email = who || S.email;
     store.savePrefs({ email: S.email });
     S.needSignIn = false;
   } catch (error) {
@@ -308,20 +355,26 @@ function renewOnClick() {
   if (auth.signedIn() && auth.minutesLeft() > 8) return;
   if (!S.email && !auth.signedIn()) return;
   renewing = true;
+  const gen = S.gen;
   auth.signIn({ prompt: "none", hint: S.email })
-    .then(() => { S.needSignIn = false; paintAll(); sync({ quiet: true }); })
+    .then(() => {
+      if (gen !== S.gen) { auth.forgetToken(); return; }     // erased or switched while Google was answering
+      S.needSignIn = false; paintAll(); sync({ quiet: true });
+    })
     .catch(() => { if (!auth.signedIn()) { S.needSignIn = true; paintAll(); } })
     .finally(() => { renewing = false; });
 }
 
 async function signOutAndErase() {
   if (!confirm("Sign out, give Google's permission back, and erase everything Class Ping saved in this browser?")) return;
-  await auth.signOut();
+  S.gen += 1;                                  // anything still reading or signing in is now ignored
+  const gone = auth.signOut();                 // Google can be slow to answer; the page is cleared meanwhile
   await store.wipe();
   store.forgetPrefs();
   Object.assign(S, { posts: [], courses: [], names: {}, lastSync: "", email: "", needSignIn: false, demo: false, error: "",
     marks: { done: {}, moved: {}, seen: {}, firstSync: false }, view: "todo", q: "", course: "any", range: "any" });
   paintAll();
+  await Promise.race([gone, new Promise((resolve) => setTimeout(resolve, 6000))]);
 }
 
 // -- theme -------------------------------------------------------------------------------
@@ -684,9 +737,18 @@ function wire() {
 
   document.addEventListener("keydown", (event) => { if (event.key === "Escape" && S.drawer) { S.drawer = false; $("#ap-root").classList.remove("drawer-open"); } });
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") { paintAll(); if (auth.signedIn()) sync({ quiet: true }); }
+    if (document.visibilityState === "hidden") { saveNow(); return; }
+    // Coming back to the tab checks again, unless it was checked a moment ago.
+    const fresh = S.lastSync && Date.now() - Date.parse(S.lastSync) < 60000;
+    paintAll();
+    if (auth.signedIn() && !fresh) sync({ quiet: true });
   });
-  setInterval(() => { if (document.visibilityState === "visible" && auth.signedIn()) sync({ quiet: true }); }, SYNC_EVERY_MS);
+  window.addEventListener("pagehide", saveNow);
+  setInterval(() => {
+    if (document.visibilityState !== "visible" || S.demo) return;
+    if (auth.signedIn()) sync({ quiet: true });
+    else if (S.posts.length && !S.needSignIn) { S.needSignIn = true; paintAll(); }     // say so, instead of quietly stopping
+  }, SYNC_EVERY_MS);
   // New posts stop being "new" after you have looked at them for a few seconds.
   setInterval(() => {
     if (document.visibilityState !== "visible" || !S.marks.firstSync) return;
