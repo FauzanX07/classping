@@ -27,6 +27,7 @@ body { margin: 0; font: 15px/1.55 var(--ui); background: var(--bg); color: var(-
   color: var(--text); text-decoration: none; font: bold 19px/1 var(--brand); white-space: nowrap;
 }
 .ap-brand img { border-radius: 7px; display: block; }
+.ap-beta { margin-left: 2px; padding: 3px 6px; border: 1px solid var(--divider); border-radius: 6px; color: var(--muted); font: 600 10.5px/1 var(--ui); letter-spacing: 0.06em; text-transform: uppercase; }
 .ap-checkrow { padding: 0 6px 12px; }
 .ap-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 30px; padding: 0 12px;
@@ -170,6 +171,7 @@ a.ap-file:hover { border-color: var(--accent); color: var(--text); }
 .ap-wcard li { position: relative; padding: 4px 0 4px 26px; color: var(--text); font-size: 14.5px; }
 .ap-wcard li::before { content: "\2713"; position: absolute; left: 2px; color: var(--accent); }
 .ap-wcard .small, .ap-set .small { color: var(--faint); font-size: 13px; margin: 16px 0 0; }
+.ap-wcard .small.beta-note { margin: 0 0 16px; }
 .ap-warn-text { color: var(--ap-warn); font-size: 14px; margin: 10px 0; }
 .ap-google {
   display: inline-flex; align-items: center; justify-content: center; gap: 12px; width: 100%; height: 42px; padding: 0 14px;

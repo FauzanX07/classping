@@ -545,6 +545,7 @@ function welcome() {
     `<img src="../logo-name.png?v=5" alt="Class Ping" width="96" height="96">` +
     `<h1>Class Ping in your browser</h1>` +
     `<p class="lead">Your Google Classroom as a to-do list: homework first, due dates in plain sight, everything sorted into sections.</p>` +
+    `<p class="small beta-note">Beta: still being tested, so some bugs are not found yet. <a href="mailto:${SUPPORT_EMAIL}?subject=Class%20Ping%20feedback">Tell us if you meet one.</a></p>` +
     `<ul><li>Read-only: it never posts, edits or deletes anything in Classroom.</li>` +
     `<li>Everything stays in this browser. There is no Class Ping server and no account.</li>` +
     `<li>Google's own page signs you in. Class Ping never sees your password.</li></ul>` +
@@ -710,9 +711,9 @@ function startDemo() {
 
 function chrome() {
   return `<div id="ap-root" class="ap">` +
-    `<div class="ap-bar"><button id="ap-menu" class="ap-btn" aria-label="Menu">Menu</button><a class="ap-brand" href="../"><img src="../logo.png?v=5" alt="" width="26" height="26">Class Ping</a></div>` +
+    `<div class="ap-bar"><button id="ap-menu" class="ap-btn" aria-label="Menu">Menu</button><a class="ap-brand" href="../"><img src="../logo.png?v=5" alt="" width="26" height="26">Class Ping<span class="ap-beta">Beta</span></a></div>` +
     `<div id="ap-scrim"></div>` +
-    `<aside class="ap-side"><a class="ap-brand" href="../"><img src="../logo.png?v=5" alt="" width="28" height="28">Class Ping</a>` +
+    `<aside class="ap-side"><a class="ap-brand" href="../"><img src="../logo.png?v=5" alt="" width="28" height="28">Class Ping<span class="ap-beta">Beta</span></a>` +
     `<div class="ap-checkrow"><button id="ap-check" class="ap-btn strong big">Check now</button></div>` +
     `<nav id="ap-nav" aria-label="Lists"></nav>` +
     `<div class="ap-side-foot"><div id="ap-foot"></div>` +
