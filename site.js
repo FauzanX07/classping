@@ -45,7 +45,27 @@
     else root.setAttribute("data-theme", prefs.theme);
     root.setAttribute("data-text", prefs.text);
     root.setAttribute("data-links", prefs.links);
+    proofs(prefs.theme);
   }
+
+  // The pictures of the app on the privacy page follow the chosen look: img[data-proof="img/name"]
+  // has name.png for Light and name-<look>.png for the others. "Match my device" uses Graphite in
+  // the dark. If a picture is missing the Light one stays, and without scripts it is the one shown.
+  var dark = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+  function proofs(theme) {
+    if (theme === "system") theme = dark && dark.matches ? "graphite" : "light";
+    var pics = document.querySelectorAll("img[data-proof]");
+    for (var i = 0; i < pics.length; i++) {
+      var pic = pics[i], base = pic.getAttribute("data-proof");
+      var want = base + (theme === "light" ? "" : "-" + theme) + ".png?v=2";
+      if (pic.getAttribute("data-shown") === want) continue;
+      pic.setAttribute("data-shown", want);
+      pic.onerror = function () { this.onerror = null; this.src = this.getAttribute("data-proof") + ".png?v=2"; };
+      pic.src = want;
+    }
+  }
+  document.addEventListener("DOMContentLoaded", function () { proofs(read().theme); });
+  if (dark && dark.addEventListener) dark.addEventListener("change", function () { proofs(read().theme); });
 
   // Before the page draws, so it never flashes the wrong colours.
   root.classList.add("js");
