@@ -23,6 +23,7 @@ const S = {
   posts: [], courses: [], names: {}, marks: { done: {}, moved: {}, seen: {}, firstSync: false },
   email: "", demo: false, lastSync: "", syncing: false, needSignIn: false, error: "", status: "",
   seenAtLoad: new Set(), drawer: false, expanded: new Set(), connecting: false,
+  pick: { start: "", tick: "", back: "" }, bulkNote: "",     // the old-work choices and what the last one did
 };
 
 const $ = (selector, root = document) => root.querySelector(selector);
@@ -124,6 +125,48 @@ function list(view, { ignore = "" } = {}) {
   }
   if (view !== "all") rows = rows.filter((p) => sectionOf(p) === view);
   return rows.sort((a, b) => Date.parse(when(b)) - Date.parse(when(a)));
+}
+
+// -- old work: tick off, or bring back, what was posted a while ago ----------------------------
+// Any section. Never a post that is still new: one you have not looked at that was posted today.
+
+const AGES = [["all", "Everything already posted", null], ["yesterday", "Yesterday and older", 1],
+  ["3days", "3 days ago and older", 3], ["week", "A week ago and older", 7], ["2weeks", "2 weeks ago and older", 14]];
+
+// The old posts that are (done) or are not (!done) ticked off yet.
+function oldPosts(age, done) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const days = AGES.find((a) => a[0] === age)[2];
+  const edge = new Date(today);
+  if (days) edge.setDate(edge.getDate() - days + 1);
+  return S.posts.filter((p) => {
+    if (isDone(p) !== done) return false;
+    const t = Date.parse(when(p));
+    return days ? t < edge : t < today || Boolean(S.marks.seen[p.id]);
+  });
+}
+
+function oldOptions(done) {
+  return AGES.map(([key, label]) => [key, label, oldPosts(key, done).length]).filter((o) => o[2]);
+}
+
+// tick: true marks them done, false puts them back. Returns how many changed.
+function oldApply(age, tick) {
+  const rows = oldPosts(age, !tick);
+  for (const p of rows) { if (tick) S.marks.done[p.id] = Date.now(); else delete S.marks.done[p.id]; }
+  persist();
+  return rows.length;
+}
+
+function oldSelect(id, done, picked, label) {
+  const found = oldOptions(done);
+  if (!found.length) {
+    return `<select class="ap-pick" id="${id}" disabled aria-label="${label}"><option>${done ? "Nothing ticked off yet" : "Nothing to tick off"}</option></select>`;
+  }
+  const chosen = found.some((o) => o[0] === picked) ? picked : (found.find((o) => o[0] === "yesterday") || found[0])[0];
+  return `<select class="ap-pick" id="${id}" aria-label="${label}">` +
+    found.map(([key, name, n]) => `<option value="${key}"${key === chosen ? " selected" : ""}>${name}  (${n})</option>`).join("") + `</select>`;
 }
 
 // -- keeping things ----------------------------------------------------------------------
@@ -477,6 +520,12 @@ function paintBanner() {
     html = `<div class="ap-note-bar warn"><span>You are signed out for now. The posts below are saved in this browser.</span>` +
       `<button class="ap-btn strong" data-act="signin">Sign in to refresh</button></div>`;
   }
+  if (!S.demo && S.view !== "settings" && S.marks.firstSync && !S.marks.askedOld && oldOptions(false).length) {
+    html += `<div class="ap-ask"><b>Tick off old work?</b>` +
+      `<p>Some work was posted before you started. Tick it off now so your list does not pile up. New posts stay as they are, and Settings can bring any of it back.</p>` +
+      `<div class="ap-askrow">${oldSelect("ap-old-start", false, S.pick.start, "How much old work to tick off")}` +
+      `<button class="ap-btn strong" data-act="old-tick">Tick off</button><button class="ap-btn" data-act="old-keep">Keep all</button></div></div>`;
+  }
   if (S.error) html += `<div class="ap-note-bar warn"><span>${esc(S.error)}</span></div>`;
   holder.innerHTML = html;
 }
@@ -525,6 +574,12 @@ function settings() {
     `<label class="ap-row"><div><b>Notify me of new posts</b><small>${perm === "denied" ? "Your browser has blocked notifications for this site." : perm === "unsupported" ? "This browser cannot show notifications." : "Asks your browser's permission first."}</small></div>` +
     `<input type="checkbox" id="ap-notify"${prefs.notify && perm === "granted" ? " checked" : ""}${perm === "denied" || perm === "unsupported" ? " disabled" : ""}></label>` +
     `<p class="small">For alerts all day, even with the browser closed, use <a href="../download.html">the Windows app</a>.</p></section>` +
+    `<section class="ap-set"><h2>Old work</h2><p>Tick off everything that was posted a while ago so your list does not pile up. New posts are never touched, and nothing is deleted.</p>` +
+    `<div class="ap-row"><div><b>Tick off old work</b><small>Marks posts as done, in any section.</small></div><div class="ap-rowbtns">` +
+    `${oldSelect("ap-bulk-tick", false, S.pick.tick, "How much old work to tick off")}<button class="ap-btn strong" data-act="bulk-tick">Tick off</button></div></div>` +
+    `<div class="ap-row gap"><div><b>Bring old work back</b><small>Puts ticked-off posts back on your list.</small></div><div class="ap-rowbtns">` +
+    `${oldSelect("ap-bulk-back", true, S.pick.back, "How much old work to bring back")}<button class="ap-btn strong" data-act="bulk-back">Untick</button></div></div>` +
+    `<p class="small" id="ap-bulk-note" role="status">${esc(S.bulkNote)}</p></section>` +
     `<section class="ap-set"><h2>Appearance</h2><p>The same five looks as the Windows app.</p><div class="ap-themes">${themes}</div></section>` +
     `<section class="ap-set"><h2>Your data</h2><p>Class Ping keeps your posts, ticks and moves in this browser only. Nothing is sent to us. ` +
     `"Sign out and erase" gives Google's permission back and deletes all of it from this browser.</p>` +
@@ -575,7 +630,7 @@ function wire() {
     if (t.dataset.more) { const id = t.dataset.more; if (S.expanded.has(id)) S.expanded.delete(id); else S.expanded.add(id); paintList(); return; }
     if (t.id === "ap-more-posts") { S.limit += PAGE; paintList(); return; }
     if (t.id === "ap-check") { sync(); return; }
-    if (t.id === "ap-settings") { S.view = S.view === "settings" ? "todo" : "settings"; S.drawer = false; paintAll(); return; }
+    if (t.id === "ap-settings") { S.view = S.view === "settings" ? "todo" : "settings"; S.bulkNote = ""; S.drawer = false; paintAll(); return; }
     if (t.id === "ap-menu") { S.drawer = !S.drawer; $("#ap-root").classList.toggle("drawer-open", S.drawer); return; }
     if (t.id === "ap-scrim") { S.drawer = false; $("#ap-root").classList.remove("drawer-open"); return; }
     const act = t.dataset.act;
@@ -583,12 +638,31 @@ function wire() {
     else if (act === "switch" || act === "other") connect("select_account");
     else if (act === "signout") signOutAndErase();
     else if (act === "demo") startDemo();
+    else if (act === "old-tick" || act === "old-keep") {
+      const n = act === "old-tick" ? oldApply(($("#ap-old-start") || {}).value || "all", true) : 0;
+      S.marks.askedOld = true;
+      persist();
+      if (n) toast(`${n} old post${n === 1 ? "" : "s"} ticked off. Settings can bring ${n === 1 ? "it" : "them"} back.`);
+      paintAll();
+    } else if (act === "bulk-tick" || act === "bulk-back") {
+      const tick = act === "bulk-tick";
+      const field = $(tick ? "#ap-bulk-tick" : "#ap-bulk-back");
+      if (!field || field.disabled) return;
+      const n = oldApply(field.value, tick);
+      S.marks.askedOld = true;                       // no need to ask at the start now
+      persist();
+      S.bulkNote = `${n} post${n === 1 ? "" : "s"} ${tick ? "ticked off" : "brought back"}.`;
+      paintAll();
+    }
   });
 
   $("#ap-root").addEventListener("change", async (event) => {
     const t = event.target;
     if (t.dataset && t.dataset.move) { S.marks.moved[t.dataset.move] = t.value; persist(); paintAll(); return; }
     if (t.id === "ap-range") { S.range = t.value; S.limit = PAGE; paintAll(); return; }
+    if (t.id === "ap-old-start") { S.pick.start = t.value; return; }
+    if (t.id === "ap-bulk-tick") { S.pick.tick = t.value; return; }
+    if (t.id === "ap-bulk-back") { S.pick.back = t.value; return; }
     if (t.id === "ap-done") { S.showDone = t.checked; S.limit = PAGE; store.savePrefs({ showDone: S.showDone }); paintAll(); return; }
     if (t.name === "theme") { setTheme(t.value); return; }
     if (t.id === "ap-notify") {

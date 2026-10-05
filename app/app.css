@@ -90,6 +90,17 @@ body { margin: 0; font: 15px/1.55 var(--ui); background: var(--bg); color: var(-
 }
 .ap-note-bar.warn { border-left: 3px solid var(--due); color: var(--text); }
 
+/* the one-time question about old work */
+.ap-ask { margin: 14px 0 0; padding: 14px 16px; border: 1px solid var(--divider); border-radius: 10px; background: var(--card); }
+.ap-ask b { display: block; font-weight: 600; }
+.ap-ask p { margin: 3px 0 10px; color: var(--muted); font-size: 14px; }
+.ap-askrow { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.ap-pick {
+  height: 30px; padding: 0 8px; border: 1px solid var(--divider); border-radius: 8px;
+  background-color: var(--bg); color: var(--text); font: 13px var(--ui); cursor: pointer; max-width: 100%;
+}
+.ap-pick:disabled { color: var(--faint); cursor: default; }
+
 /* -- cards ------------------------------------------------------------------------------- */
 .ap-listing { display: flex; flex-direction: column; gap: 12px; }
 .ap-card {
@@ -109,7 +120,7 @@ body { margin: 0; font: 15px/1.55 var(--ui); background: var(--bg); color: var(-
 .k-question { --k: var(--due); }
 .ap-new { font: 700 11px/1 var(--ui); letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
 .ap-acts { margin-left: auto; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-.ap-move select, #ap-range {
+.ap-move select, #ap-range, .ap-pick {
   appearance: none; -webkit-appearance: none; padding-right: 26px !important;
   background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
   background-position: calc(100% - 15px) 52%, calc(100% - 10px) 52%; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat;
@@ -177,7 +188,8 @@ a.ap-file:hover { border-color: var(--accent); color: var(--text); }
 .ap-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .ap-row b { display: block; font-weight: 600; }
 .ap-row small { display: block; color: var(--faint); font-size: 13px; }
-.ap-rowbtns { display: flex; gap: 8px; flex-wrap: wrap; }
+.ap-rowbtns { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.ap-row.gap { margin-top: 16px; }
 #ap-notify { width: 20px; height: 20px; accent-color: var(--accent); }
 .ap-themes { display: grid; grid-template-columns: repeat(auto-fill, minmax(138px, 1fr)); gap: 10px; }
 .ap-choice { position: relative; display: block; padding: 8px; border: 1px solid var(--divider); border-radius: 8px; cursor: pointer; }
