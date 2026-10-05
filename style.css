@@ -273,7 +273,7 @@ footer { border-top: 1px solid var(--divider); background: var(--sidebar); color
 footer .wrap { padding-top: 28px; padding-bottom: 32px; display: flex; justify-content: space-between; gap: 32px; }
 footer p { margin: 0 0 6px; max-width: 560px; }
 footer a { color: var(--muted); }
-.foot-links { display: flex; gap: 18px; white-space: nowrap; }
+.foot-links { display: flex; flex-wrap: wrap; gap: 8px 18px; white-space: nowrap; }
 
 /* -- narrower screens -- */
 @media (max-width: 900px) {
@@ -624,3 +624,33 @@ main { animation: page-in 0.32s ease both; }
 /* -- touch targets: footer and contents links were 20px tall -- */
 footer a { display: inline-block; padding: 6px 2px; }
 .toc a { display: inline-block; padding: 5px 0; }
+
+/* -- the "check it yourself" page ---------------------------------------------------------------- */
+.lede { color: var(--muted); margin: -6px 0 18px; max-width: 640px; }
+.flow { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 30px; counter-reset: flow; }
+.flow li { position: relative; margin: 0; padding: 20px 20px 22px; background: var(--card); border: 1px solid var(--divider); border-radius: var(--radius); }
+.flow li.key { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.flow li + li::after { content: "\2192"; position: absolute; left: -24px; top: 50%; transform: translateY(-50%); color: var(--faint); font-size: 20px; line-height: 1; }
+.flow .who { display: block; margin-bottom: 6px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); }
+.flow h3 { margin: 0 0 8px; font-size: 20px; }
+.flow p { margin: 0; color: var(--muted); font-size: 15px; }
+.flow .pw { color: var(--text); font-weight: 600; }
+.callout { margin: 20px 0 0; padding: 14px 18px; border-left: 3px solid var(--accent); background: var(--card); border-radius: 0 var(--radius) var(--radius) 0; color: var(--text); }
+.proofs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; align-items: start; }
+.proofs figure.wide { grid-column: 1 / -1; }
+.proofs .col { display: flex; flex-direction: column; gap: 28px; min-width: 0; }
+.proofs figure { margin: 0; }
+.proofs img { display: block; width: 100%; height: auto; border: 1px solid var(--divider); border-radius: var(--radius); background: var(--card); }
+.proofs figcaption { margin-top: 10px; font-size: 14.5px; line-height: 1.5; color: var(--muted); }
+.proofs figcaption strong { color: var(--text); }
+.perms { width: 100%; border-collapse: collapse; margin: 0 0 18px; font-size: 15px; }
+.perms th, .perms td { text-align: left; vertical-align: top; padding: 13px 0; border-top: 1px solid var(--divider); }
+.perms tr:last-child th, .perms tr:last-child td { border-bottom: 1px solid var(--divider); }
+.perms th { width: 34%; padding-right: 22px; font-weight: 600; color: var(--text); }
+.perms td { color: var(--muted); }
+@media (max-width: 760px) {
+  .flow { grid-template-columns: 1fr; gap: 30px; }
+  .flow li + li::after { content: "\2193"; left: 50%; top: -26px; transform: translateX(-50%); }
+  .proofs { grid-template-columns: 1fr; }
+  .perms th { width: 40%; }
+}
