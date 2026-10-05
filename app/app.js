@@ -608,7 +608,7 @@ function welcome() {
     `<button class="ap-btn wide" data-act="demo">Try it with sample posts</button>` +
     (S.error ? `<p class="ap-warn-text">${esc(S.error)}</p>` : "") +
     `<p class="small">A web page can only notify you while it is open. For alerts all day, even with the browser closed, use <a href="../download.html">the Windows app</a>. ` +
-    `<a href="../privacy.html">Privacy</a> &middot; <a href="../terms.html">Terms</a> &middot; <a href="../safety.html">Check it yourself</a></p>` +
+    `<a href="../privacy.html">Privacy</a> &middot; <a href="../terms.html">Terms</a> &middot; <a href="../privacy.html#proof">Check it yourself</a></p>` +
     `</div></div>`;
 }
 

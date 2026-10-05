@@ -654,3 +654,12 @@ footer a { display: inline-block; padding: 6px 2px; }
   .proofs { grid-template-columns: 1fr; }
   .perms th { width: 40%; }
 }
+
+/* the same pictures inside the privacy policy and terms (a narrow reading column) */
+.doc .flow { grid-template-columns: 1fr; gap: 30px; margin: 18px 0 0; }
+.doc .flow li + li::after { content: "\2193"; left: 50%; top: -26px; transform: translateX(-50%); }
+.doc .flow h3 { margin: 0 0 8px; font-size: 19px; }
+.doc .proofs { grid-template-columns: 1fr; margin: 14px 0 22px; }
+.doc .callout { margin-bottom: 18px; }
+.doc .perms { margin-top: 10px; }
+.doc .proofs img[src*="web-signin"] { max-width: 460px; }
