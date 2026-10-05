@@ -31,7 +31,13 @@
     try { localStorage.setItem(KEY, JSON.stringify(prefs)); return true; } catch (e) { return false; }
   }
 
-  function apply(prefs) {
+  var calm = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  function apply(prefs, ease) {
+    if (ease && !calm) {                  // a changed look eases over (style.css), a saved one is there from the first paint
+      root.classList.add("theme-fade");
+      setTimeout(function () { root.classList.remove("theme-fade"); }, 400);
+    }
     if (prefs.theme === "system") root.removeAttribute("data-theme");
     else root.setAttribute("data-theme", prefs.theme);
     root.setAttribute("data-text", prefs.text);
@@ -88,7 +94,7 @@
     }
     form.addEventListener("change", function () {
       var chosen = current();
-      apply(chosen);
+      apply(chosen, true);
       if (save(chosen)) said();
     });
     form.addEventListener("submit", function (event) { event.preventDefault(); });
@@ -96,7 +102,7 @@
       form.elements.theme.value = DEFAULTS.theme;
       form.elements.text.value = DEFAULTS.text;
       form.elements.links.checked = false;
-      apply(DEFAULTS);
+      apply(DEFAULTS, true);
       if (save(DEFAULTS)) said();
     });
   }
@@ -121,8 +127,40 @@
     });
   }
 
+  // Blocks below the first screen rise in once as they scroll into view. Only opacity and transform
+  // change, so nothing moves; if anything here is missing, the blocks are simply there.
+  function reveal() {
+    if (!("IntersectionObserver" in window) || calm) return;
+    var below = window.innerHeight - 40;
+    var items = [].slice.call(document.querySelectorAll(
+      ".band .section-head, .band .feature, .band .mode, .band .split > *, .band .cta > *"))
+      .filter(function (el) { return el.getBoundingClientRect().top > below; });
+    if (!items.length) return;
+    function show(el) {
+      el.classList.add("in");
+      el.addEventListener("transitionend", function done(event) {
+        if (event.propertyName !== "opacity") return;
+        el.removeEventListener("transitionend", done);
+        el.classList.remove("rv", "in");          // back to plain styles, so hover effects are not slowed
+        el.style.removeProperty("--i");
+      });
+    }
+    var seen = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting || entry.boundingClientRect.top < 0) { seen.unobserve(entry.target); show(entry.target); }
+      });
+    }, { rootMargin: "0px 0px -6% 0px" });
+    items.forEach(function (el) {
+      el.classList.add("rv");
+      el.style.setProperty("--i", [].indexOf.call(el.parentNode.children, el) % 2);
+      seen.observe(el);
+    });
+    window.addEventListener("beforeprint", function () { items.forEach(function (el) { el.classList.add("in"); }); });
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
     phoneMenu();
+    reveal();
     var holder = document.getElementById("settings-root");
     if (holder) settingsPage(holder);
   });

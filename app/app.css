@@ -33,8 +33,9 @@ body { margin: 0; font: 15px/1.55 var(--ui); background: var(--bg); color: var(-
   display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 30px; padding: 0 12px;
   border: 1px solid var(--divider); border-radius: 8px; background: transparent; color: var(--text);
   font: 13px/1 var(--ui); cursor: pointer; text-decoration: none; white-space: nowrap;
-  transition: background-color 0.16s ease, border-color 0.16s ease;
+  transition: background-color 0.16s ease, border-color 0.16s ease, transform 0.1s ease;
 }
+.ap-btn:active { transform: translateY(1px); }
 .ap-btn:hover { background: var(--raised); color: var(--text); }
 .ap-btn.strong { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
 .ap-btn.strong:hover { background: var(--accent-hover); border-color: var(--accent-hover); color: var(--accent-text); }
@@ -47,11 +48,13 @@ body { margin: 0; font: 15px/1.55 var(--ui); background: var(--bg); color: var(-
   display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; min-height: 34px; padding: 6px 10px;
   border: 0; border-left: 3px solid transparent; border-radius: 6px; background: transparent;
   color: var(--muted); font: 14px/1.2 var(--ui); cursor: pointer; text-decoration: none;
+  transition: background-color 0.16s ease, color 0.16s ease;
 }
 .ap-nav span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ap-nav em { font-style: normal; color: var(--faint); font-size: 13px; }
-.ap-nav:hover { background: var(--raised); color: var(--text); }
-.ap-nav.on { background: var(--raised); color: var(--text); font-weight: 600; border-left-color: var(--accent); }
+.ap-nav:hover, .ap-nav.on { background: var(--raised); color: var(--text); }
+.ap-nav:hover em, .ap-nav.on em { color: var(--muted); }
+.ap-nav.on { font-weight: 600; border-left-color: var(--accent); }
 .ap-heading { margin: 16px 10px 6px; font: 600 11px/1 var(--ui); letter-spacing: 0.08em; color: var(--faint); }
 .ap-class i {
   flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center;
@@ -153,7 +156,7 @@ a.ap-file:hover { border-color: var(--accent); color: var(--text); }
 .ap-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .ap-thumb b { font: 700 11px/1 var(--ui); letter-spacing: 0.06em; }
 .ap-fname { flex: 1; min-width: 0; font-size: 13.5px; line-height: 1.3; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.ap-fkind { font: 600 10.5px/1 var(--ui); color: var(--faint); letter-spacing: 0.06em; }
+.ap-fkind { font: 600 10.5px/1 var(--ui); color: var(--muted); letter-spacing: 0.06em; }
 
 .ap-empty { text-align: center; padding: 70px 20px; color: var(--muted); }
 .ap-empty h2 { margin: 0 0 8px; font: normal 24px var(--serif); color: var(--text); }
@@ -214,15 +217,19 @@ a.ap-file:hover { border-color: var(--accent); color: var(--text); }
     background: var(--sidebar); border-bottom: 1px solid var(--divider);
   }
   .ap-bar .ap-brand { margin: 0; font-size: 17px; }
-  .ap-side { position: fixed; left: 0; top: 0; bottom: 0; width: min(290px, 86vw); z-index: 50; transform: translateX(-102%); transition: transform 0.2s ease; }
+  /* closed: off screen and hidden, so the keyboard cannot tab into it */
+  .ap-side {
+    position: fixed; left: 0; top: 0; bottom: 0; width: min(290px, 86vw); z-index: 50;
+    transform: translateX(-102%); visibility: hidden; transition: transform 0.2s ease, visibility 0s linear 0.2s;
+  }
   .ap-side .ap-brand { margin-top: 2px; }
-  .ap.drawer-open .ap-side { transform: none; }
-  .ap.drawer-open #ap-scrim { display: block; position: fixed; inset: 0; z-index: 45; background: rgba(0, 0, 0, 0.5); }
+  .ap.drawer-open .ap-side { transform: none; visibility: visible; transition: transform 0.2s ease; }
+  #ap-scrim { display: block; position: fixed; inset: 0; z-index: 45; background: rgba(0, 0, 0, 0.5); opacity: 0; visibility: hidden; transition: opacity 0.2s ease, visibility 0s linear 0.2s; }
+  .ap.drawer-open #ap-scrim { opacity: 1; visibility: visible; transition: opacity 0.2s ease; }
   #ap-page { padding: 20px 16px 70px; }
   .ap-head h1 { font-size: 27px; }
   .ap-acts { margin-left: 0; width: 100%; }
 }
-@media (prefers-reduced-motion: reduce) { .ap-side { transition: none; } }
 
 /* -- teacher pictures: initials, with the photo laid over them when Google gives one ----------- */
 .ap-ava {
@@ -244,3 +251,45 @@ a.ap-file:hover { border-color: var(--accent); color: var(--text); }
 
 /* a dot left at the end of a wrapped line looks like a mistake: on narrow screens use spacing */
 @media (max-width: 560px) { .ap-dot { display: none; } .ap-meta { gap: 2px 12px; } }
+
+/* -- motion: opacity and transform only (the one exception is a row closing up after it is ticked off) -- */
+@keyframes ap-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes ap-pop { 0% { opacity: 0; transform: scale(0.4); } 60% { opacity: 1; transform: scale(1.12); } 100% { opacity: 1; transform: scale(1); } }
+@keyframes ap-run { from { transform: translateX(-100%); } to { transform: translateX(260%); } }
+
+/* cards rise in when a list is opened (not on every repaint), a few at a time */
+.ap-listing.enter .ap-card, .ap-listing.enter .ap-empty { animation: ap-rise 0.3s ease backwards; animation-delay: calc(var(--i, 0) * 45ms); }
+.ap-wcard.enter, .ap-settings.enter .ap-set { animation: ap-rise 0.32s ease backwards; }
+.ap-settings.enter .ap-set:nth-child(2) { animation-delay: 50ms; } .ap-settings.enter .ap-set:nth-child(3) { animation-delay: 100ms; }
+.ap-settings.enter .ap-set:nth-child(4) { animation-delay: 150ms; } .ap-settings.enter .ap-set:nth-child(5) { animation-delay: 200ms; }
+.ap-card, .ap-file { transition: border-color 0.2s ease; }
+.ap-card:hover { border-color: var(--faint); }
+.ap-toast { animation: ap-rise 0.25s ease backwards; transition: opacity 0.3s ease; }
+.ap-toast.out { opacity: 0; }
+
+/* ticking a post off: the check pops, the card fades and slides a little, then the row closes up */
+.ap-card.ticking { position: relative; overflow: hidden; opacity: 0; transition: opacity 0.12s ease 0.09s, transform 0.2s ease, height 0.2s ease 0.02s, margin 0.2s ease 0.02s, padding 0.2s ease 0.02s; transform: translateX(14px); height: 0 !important; padding-top: 0; padding-bottom: 0; margin-top: -6px; margin-bottom: -6px; border-width: 0; pointer-events: none; }
+.ap-card.ticking::after {
+  content: "\2713"; position: absolute; right: 22px; top: 18px; width: 30px; height: 30px; border-radius: 50%;
+  display: grid; place-items: center; background: var(--accent); color: var(--accent-text); font: 700 16px/1 var(--ui);
+  animation: ap-pop 0.2s ease both;
+}
+.ap-card.popped .ap-btn { animation: ap-pop 0.28s ease both; }
+
+/* a plain progress line while Classroom is being read: one bar slides along the top (transform only) */
+.ap::before { content: ""; position: fixed; top: 0; left: 0; width: 38%; height: 2px; z-index: 70; background: var(--accent); opacity: 0; transform: translateX(-100%); pointer-events: none; }
+.ap.busy::before { opacity: 1; animation: ap-run 1.3s ease-in-out infinite; }
+
+/* theme change: colours ease over (the class is only there for a moment when the look is changed) */
+html.theme-fade, html.theme-fade * { transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  .ap.busy::before { transform: none; width: 100%; opacity: 0.55; }
+}
+
+/* narrow screens: the way back sits above the card instead of floating over it */
+@media (max-width: 860px) {
+  .ap-back { position: static; margin: 0 0 14px; }
+  .ap-welcome { min-height: 0; padding-bottom: 24px; }
+}

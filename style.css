@@ -13,7 +13,7 @@
   --accent-text: #121714;
   --text: #E8ECE6;
   --muted: #A8B0A9;
-  --faint: #848C85;
+  --faint: #889089;
   --due: #E2A45F;
   --ok: #9DBB8F;
   --link: var(--accent);
@@ -41,13 +41,13 @@
     --accent-hover: #3A7D54;
     --accent-text: #FFF8F0;
     --text: #2B2620;
-    --muted: #6B6256;
-    --faint: #8C8274;
+    --muted: #5F574B;
+    --faint: #6E655A;
     --due: #8F5410;
     --ok: #46703F;
     --link: var(--accent);
     --assignment: #3E5F8A;
-    --material: #4F7A45;
+    --material: #46703C;
     --announcement: #6E4A86;
     color-scheme: light;
   }
@@ -315,7 +315,7 @@ footer a { color: var(--muted); }
   --accent-text: #121714;
   --text: #E8ECE6;
   --muted: #A8B0A9;
-  --faint: #848C85;
+  --faint: #889089;
   --due: #E2A45F;
   --ok: #9DBB8F;
   --link: var(--accent);
@@ -334,13 +334,13 @@ footer a { color: var(--muted); }
   --accent-hover: #3A7D54;
   --accent-text: #FFF8F0;
   --text: #2B2620;
-  --muted: #6B6256;
-  --faint: #8C8274;
+  --muted: #5F574B;
+  --faint: #6E655A;
   --due: #8F5410;
   --ok: #46703F;
   --link: var(--accent);
   --assignment: #3E5F8A;
-  --material: #4F7A45;
+  --material: #46703C;
   --announcement: #6E4A86;
   color-scheme: light;
 }
@@ -355,7 +355,7 @@ footer a { color: var(--muted); }
   --accent-text: #1C2B24;
   --text: #EEF0E6;
   --muted: #B5BFAF;
-  --faint: #8E9A8A;
+  --faint: #919D8D;
   --due: #F2B36B;
   --ok: #A9D39A;
   --link: var(--accent);
@@ -375,7 +375,7 @@ footer a { color: var(--muted); }
   --accent-text: #141925;
   --text: #E8E6DF;
   --muted: #A7AABB;
-  --faint: #80869E;
+  --faint: #858BA1;
   --due: #E0A15E;
   --ok: #9CC09A;
   --link: var(--accent);
@@ -395,7 +395,7 @@ footer a { color: var(--muted); }
   --accent-text: #0A0A0A;
   --text: #ECECEC;
   --muted: #A6A6A6;
-  --faint: #7C7C7C;
+  --faint: #7F7F7F;
   --due: #E6A95E;
   --ok: #9FC08F;
   --link: var(--accent);
@@ -412,12 +412,43 @@ html { scroll-behavior: smooth; }
    phone menu opens over the page rather than under it */
 .top { view-transition-name: top-bar; position: relative; z-index: 30; }
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: 0.24s; animation-timing-function: ease; }
-main { animation: page-in 0.32s ease both; }
-@keyframes page-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  main { animation: none; }
   @view-transition { navigation: none; }
+}
+
+/* -- a gentle arrival: opacity and transform only, so nothing moves the layout -- */
+main { animation: fade-in 0.22s ease both; }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.hero > div > *, .page-intro > *, .page-head > *, .preview .post, .block, .summary, .settings-group {
+  animation: rise 0.34s ease backwards;
+  animation-delay: calc(var(--i, 0) * 55ms);
+}
+:is(.hero > div, .page-intro, .page-head, .preview, .page-body, .settings-form) > :nth-child(2) { --i: 1; }
+:is(.hero > div, .page-intro, .page-head, .preview, .page-body, .settings-form) > :nth-child(3) { --i: 2; }
+:is(.hero > div, .page-intro, .page-head, .preview, .page-body, .settings-form) > :nth-child(4) { --i: 3; }
+:is(.hero > div, .preview, .page-body) > :nth-child(5) { --i: 4; }
+.hero > div > :nth-child(6) { --i: 5; }
+.hero .preview { animation: rise 0.34s ease 0.12s backwards; }
+
+/* below the fold, blocks rise once as they scroll into view (site.js adds .rv only when it can); without JS everything is simply there */
+.js .rv { opacity: 0; transform: translateY(12px); }
+.js .rv.in { opacity: 1; transform: none; transition: opacity 0.4s ease, transform 0.4s ease; transition-delay: calc(var(--i, 0) * 60ms); }
+
+/* the colours ease over when the look is changed in Settings (site.js adds the class for a moment) */
+html.theme-fade, html.theme-fade * { transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease !important; }
+
+/* buttons and cards answer a hover and a press */
+.button, .menu-toggle, .settings-foot button { transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease, transform 0.1s ease; }
+.button:active, .menu-toggle:active, .settings-foot button:active { transform: translateY(1px); }
+.mode, .contact-cards .card { transition: border-color 0.2s ease; }
+.mode:hover, .contact-cards .card:hover { border-color: var(--faint); }
+
+@media print { .js .rv { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  .js .rv { opacity: 1 !important; transform: none !important; }
 }
 
 /* -- text size and links, from Settings -- */
@@ -535,6 +566,15 @@ main { animation: page-in 0.32s ease both; }
 .faq summary::after { content: "+"; font: 22px/1 var(--ui); color: var(--faint); transition: transform 0.2s ease; }
 .faq details[open] summary::after { transform: rotate(45deg); }
 .faq details p { color: var(--muted); margin: 0 0 18px; padding: 0 2px; max-width: var(--read); }
+.faq summary { transition: color 0.16s ease; }
+.faq summary:hover { color: var(--accent); }
+/* opening: the answer rises in; where the browser can animate a <details> box, it also opens smoothly */
+.faq details[open] p { animation: rise 0.28s ease backwards; }
+@supports (selector(::details-content)) {
+  .faq details { interpolate-size: allow-keywords; }
+  .faq details::details-content { block-size: 0; overflow: hidden; transition: block-size 0.26s ease, content-visibility 0.26s allow-discrete; }
+  .faq details[open]::details-content { block-size: auto; }
+}
 
 /* -- settings page -- */
 .settings-group { background: var(--card); border: 1px solid var(--divider); border-radius: 12px; padding: 22px 24px; }
@@ -639,3 +679,16 @@ footer a { display: inline-block; padding: 6px 2px; }
 .doc figure.narrow img { max-width: 460px; }
 .doc figcaption { margin-top: 8px; font-size: 14.5px; line-height: 1.5; color: var(--muted); }
 .doc figcaption strong { color: var(--text); }
+
+/* -- alignment fixes found by the width checks -- */
+.top nav a { white-space: nowrap; }
+@media (min-width: 761px) and (max-width: 940px) {
+  .top nav { gap: 0; }
+  .top nav a { padding: 0 9px; font-size: 14px; }
+  .top nav a.nav-settings { margin-left: 4px; }
+  .brand { font-size: 19px; }
+}
+@media (max-width: 900px) { footer .wrap { flex-direction: column; gap: 12px; } }
+.choice { display: flex; }
+.choice .face { flex: 1; }
+.faq summary { line-height: 1.3; }

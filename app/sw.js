@@ -2,7 +2,7 @@
 // IndexedDB; this keeps the page itself). Network first, so a new version of the
 // site is always picked up when online. Only this site's own files are kept:
 // requests to Google are never touched.
-const CACHE = "classping-web-v2";
+const CACHE = "classping-web-v3";       // bump with the ?v= on app.js; old copies are dropped when this changes
 
 self.addEventListener("install", (event) => { self.skipWaiting(); });
 
@@ -20,7 +20,11 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(
     fetch(request, { cache: "no-cache" })       // never a stale file from the browser's own cache
       .then((reply) => {
-        if (reply.ok) { const copy = reply.clone(); caches.open(CACHE).then((c) => c.put(request, copy)); }
+        // Only whole, same-site answers are kept (a partial 206 cannot be cached and used to throw).
+        if (reply.ok && reply.status === 200 && reply.type === "basic") {
+          const copy = reply.clone();
+          caches.open(CACHE).then((c) => c.put(request, copy)).catch(() => { /* a full disk is not a reason to fail the page */ });
+        }
         return reply;
       })
       .catch(() => caches.match(request).then((hit) => hit || (request.mode === "navigate" ? caches.match("./") : Response.error()))));

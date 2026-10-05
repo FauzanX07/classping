@@ -2,12 +2,13 @@
 // Read-only, no server: everything is kept in this browser, and the only
 // requests that leave it go to Google.
 
-import * as auth from "./auth.js";
-import * as api from "./api.js";
-import * as store from "./store.js";
-import { classify } from "./sort.js";
-import { sample } from "./demo.js";
-import { SYNC_EVERY_MS, FIRST_READ_MOST, REFRESH_READ_MOST, SUPPORT_EMAIL } from "./config.js";
+// The ?v= below goes up with the one on app.js in index.html, so a new deploy never mixes old and new files.
+import * as auth from "./auth.js?v=12";
+import * as api from "./api.js?v=12";
+import * as store from "./store.js?v=12";
+import { classify } from "./sort.js?v=12";
+import { sample } from "./demo.js?v=12";
+import { SYNC_EVERY_MS, FIRST_READ_MOST, REFRESH_READ_MOST, SUPPORT_EMAIL } from "./config.js?v=12";
 
 const SECTIONS = ["Homework", "Classwork", "Important", "Extra", "Notes"];
 const KIND_LABEL = { announcement: "Announcement", assignment: "Assignment", material: "Material", question: "Question" };
@@ -28,6 +29,9 @@ const S = {
 };
 
 const $ = (selector, root = document) => root.querySelector(selector);
+const calm = () => window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+// Only web addresses become links or pictures, even if a saved post held something else.
+const safeUrl = (url) => (/^https?:\/\//i.test(String(url || "")) ? String(url) : "");
 const esc = (text) => String(text == null ? "" : text).replace(/[&<>"']/g,
   (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
@@ -155,7 +159,7 @@ function oldOptions(done) {
 // tick: true marks them done, false puts them back. Returns how many changed.
 function oldApply(age, tick) {
   const rows = oldPosts(age, !tick);
-  for (const p of rows) { if (tick) S.marks.done[p.id] = Date.now(); else delete S.marks.done[p.id]; }
+  for (const p of rows) mark("done", p.id, tick ? Date.now() : null);
   persist();
   return rows.length;
 }
@@ -172,18 +176,57 @@ function oldSelect(id, done, picked, label) {
 
 // -- keeping things ----------------------------------------------------------------------
 
+// What this tab changed in the ticks and moves and has not saved yet (null = taken back). Saving
+// re-reads what is stored and lays these on top, so another tab's ticks are not lost.
+const freshOps = () => ({ done: {}, moved: {}, seen: {}, flag: {} });
+let ops = freshOps();
+
+function mark(kind, id, value) {
+  if (value === null) delete S.marks[kind][id]; else S.marks[kind][id] = value;
+  if (!S.demo) ops[kind][id] = value;
+}
+function flag(name, value) {
+  S.marks[name] = value;
+  if (!S.demo) ops.flag[name] = value;
+}
+function withOps(base, pending) {
+  const next = { done: {}, moved: {}, seen: {}, firstSync: false, ...base };
+  for (const kind of ["done", "moved", "seen"]) {
+    next[kind] = { ...(base[kind] || {}) };
+    for (const [id, value] of Object.entries(pending[kind])) { if (value === null) delete next[kind][id]; else next[kind][id] = value; }
+  }
+  return Object.assign(next, pending.flag);
+}
+const noMarks = () => ({ done: {}, moved: {}, seen: {}, firstSync: false });
+
 let saving = 0;
-async function save() {
+let saveChain = Promise.resolve();
+function save() {
+  saveChain = saveChain.then(doSave, doSave);
+  return saveChain;
+}
+async function doSave() {
   if (S.demo) return;                         // samples are never saved
-  await store.set("posts", S.posts);
-  await store.set("courses", S.courses);
-  await store.set("names", S.names);
-  await store.set("marks", S.marks);
-  await store.set("lastSync", S.lastSync);
+  const gen = S.gen;
+  const mine = ops;
+  ops = freshOps();
+  const result = await store.save(
+    { posts: S.posts, courses: S.courses, names: S.names, lastSync: S.lastSync },
+    (stored) => withOps(stored, mine),
+    () => gen === S.gen);
+  if (gen !== S.gen) return;                  // erased or switched meanwhile: nothing here belongs to this account now
+  if (!result) {                              // the browser would not save: keep the changes for the next try
+    for (const kind of ["done", "moved", "seen", "flag"]) ops[kind] = { ...mine[kind], ...ops[kind] };
+    return;
+  }
+  if (result.skipped) return;
+  S.marks = withOps(result.marks, ops);       // ticks made in other tabs, plus what was changed while saving
+  store.announce("data");
+  if (!result.postsKept) refresh();           // another tab had newer posts
 }
 function persist() {
   clearTimeout(saving);
-  saving = setTimeout(save, 400);
+  saving = setTimeout(() => { saving = 0; save(); }, 400);
 }
 // A tick followed by closing the tab straight away must still be kept.
 function saveNow() {
@@ -191,6 +234,46 @@ function saveNow() {
   clearTimeout(saving);
   saving = 0;
   save();
+}
+
+// Another tab saved or erased something: read it again.
+let looking = 0;
+function otherTab(kind) {
+  if (S.demo) return;
+  if (kind === "erased") { erasedElsewhere(); return; }
+  clearTimeout(looking);
+  looking = setTimeout(refresh, 150);
+}
+async function refresh() {
+  if (S.demo) return;
+  const gen = S.gen;
+  const data = await store.readAll(["posts", "courses", "names", "marks", "lastSync"]);
+  if (gen !== S.gen || S.demo) return;
+  const seeing = JSON.stringify([S.marks.done, S.marks.moved, S.marks.askedOld, S.marks.firstSync, S.lastSync, S.posts.length]);
+  S.marks = withOps({ ...noMarks(), ...(data.marks || {}) }, ops);
+  const theirs = Date.parse(data.lastSync || "") || 0;
+  if (!S.syncing && theirs > (Date.parse(S.lastSync || "") || 0)) {
+    S.posts = (data.posts || []).map((p) => (p.section ? p : sortPost(p)));
+    S.courses = data.courses || [];
+    S.names = data.names || {};
+    S.lastSync = data.lastSync;
+    if (S.course !== "any" && !S.courses.some((c) => c.id === S.course)) S.course = "any";
+  }
+  const email = store.prefs().email;
+  if (email) S.email = email;
+  if (JSON.stringify([S.marks.done, S.marks.moved, S.marks.askedOld, S.marks.firstSync, S.lastSync, S.posts.length]) !== seeing) paintAll();
+}
+
+// Erased, or a different account chosen, in another tab: nothing of the old account stays here either.
+function erasedElsewhere() {
+  S.gen += 1;
+  ops = freshOps();
+  clearTimeout(saving); saving = 0;
+  auth.forgetToken();
+  Object.assign(S, { posts: [], courses: [], names: {}, lastSync: "", email: store.prefs().email || "", needSignIn: false, error: "", bulkNote: "",
+    syncing: false, connecting: false, marks: noMarks(), view: "todo", q: "", course: "any", range: "any", limit: PAGE,
+    seenAtLoad: new Set(), expanded: new Set(), pick: { start: "", tick: "", back: "" } });
+  paintAll();
 }
 
 // -- reading Classroom -------------------------------------------------------------------
@@ -207,12 +290,15 @@ function explain(error) {
   return text || "Something went wrong.";
 }
 
+let syncRun = 0, syncOf = -1;
 async function sync({ quiet = false } = {}) {
-  if (S.demo || S.syncing) return;
+  if (S.demo) return;
+  if (S.syncing && syncOf === S.gen) return;     // one is already reading (one for an account that was left does not count)
   if (!auth.signedIn()) { S.needSignIn = true; paintAll(); return; }
+  const run = ++syncRun;
+  const gen = syncOf = S.gen;
   S.syncing = true;
   S.error = "";
-  const gen = S.gen;
   paintStatus(quiet ? "" : "Checking Classroom...");
   paintCheck();
   if ($("#ap-root").classList.contains("welcome-mode")) paintAll();   // say so, instead of sitting still
@@ -266,8 +352,8 @@ async function sync({ quiet = false } = {}) {
     }
     S.needSignIn = false;
     if (first) {
-      for (const p of S.posts) S.marks.seen[p.id] = 1;        // no backlog of "new" on the first read
-      S.marks.firstSync = true;
+      for (const p of S.posts) mark("seen", p.id, 1);        // no backlog of "new" on the first read
+      flag("firstSync", true);
       S.seenAtLoad = new Set(Object.keys(S.marks.seen));
     } else if (fresh.length) {
       tell(fresh);
@@ -281,8 +367,7 @@ async function sync({ quiet = false } = {}) {
       S.error = explain(error);
     }
   } finally {
-    S.syncing = false;
-    S.status = "";
+    if (run === syncRun) { S.syncing = false; S.status = ""; }
     paintAll();
   }
 }
@@ -309,6 +394,8 @@ function tell(fresh) {
 // Everything stored belongs to one Google account. Forget it all (not the look you chose).
 async function startOver() {
   S.gen += 1;
+  ops = freshOps();
+  clearTimeout(saving); saving = 0;
   await store.wipe();
   Object.assign(S, { posts: [], courses: [], names: {}, lastSync: "", needSignIn: false, error: "", bulkNote: "",
     marks: { done: {}, moved: {}, seen: {}, firstSync: false }, view: "todo", q: "", course: "any", range: "any",
@@ -319,17 +406,20 @@ async function connect(prompt = "") {
   S.error = "";
   S.connecting = true;
   paintAll();
+  const gen = S.gen;
   try {
     await auth.signIn({ prompt, hint: prompt === "select_account" ? "" : S.email });
+    if (gen !== S.gen) { auth.forgetToken(); return; }      // erased or switched while Google's window was open
     const missing = auth.missing();
     if (missing.length) {
       auth.forgetToken();
       S.error = "Class Ping needs every box ticked on Google's page to read your classes, announcements and classwork. Press Sign in and tick them all.";
       return;
     }
-    if (S.demo) { S.demo = false; S.posts = []; S.courses = []; S.lastSync = ""; S.marks = { done: {}, moved: {}, seen: {}, firstSync: false }; }
+    if (S.demo) { S.demo = false; S.posts = []; S.courses = []; S.lastSync = ""; S.marks = noMarks(); ops = freshOps(); }
     let who = "";
     try { who = await auth.email(); } catch (e) { /* the address is only shown */ }
+    if (gen !== S.gen) { auth.forgetToken(); return; }
     if (who && S.email && who.toLowerCase() !== S.email.toLowerCase()) {
       // A different account: the old one's classes, posts and ticks must not stay.
       await startOver();
@@ -368,12 +458,14 @@ function renewOnClick() {
 async function signOutAndErase() {
   if (!confirm("Sign out, give Google's permission back, and erase everything Class Ping saved in this browser?")) return;
   S.gen += 1;                                  // anything still reading or signing in is now ignored
+  ops = freshOps();
+  clearTimeout(saving); saving = 0;
   const gone = auth.signOut();                 // Google can be slow to answer; the page is cleared meanwhile
-  await store.wipe();
   store.forgetPrefs();
   Object.assign(S, { posts: [], courses: [], names: {}, lastSync: "", email: "", needSignIn: false, demo: false, error: "",
-    marks: { done: {}, moved: {}, seen: {}, firstSync: false }, view: "todo", q: "", course: "any", range: "any" });
+    syncing: false, connecting: false, marks: noMarks(), view: "todo", q: "", course: "any", range: "any" });
   paintAll();
+  await store.wipe();
   await Promise.race([gone, new Promise((resolve) => setTimeout(resolve, 6000))]);
 }
 
@@ -387,6 +479,8 @@ function setTheme(theme) {
   const next = { ...sitePrefs(), theme };
   try { localStorage.setItem(SITE_PREFS, JSON.stringify(next)); } catch (e) { /* blocked */ }
   const root = document.documentElement;
+  root.classList.add("theme-fade");              // colours ease over for a moment (style.css), only when the look is changed
+  setTimeout(() => root.classList.remove("theme-fade"), 400);
   if (theme === "system") root.removeAttribute("data-theme"); else root.setAttribute("data-theme", theme);
 }
 
@@ -399,6 +493,7 @@ function toast(text) {
   item.className = "ap-toast";
   item.textContent = text;
   box.appendChild(item);
+  setTimeout(() => item.classList.add("out"), 5700);
   setTimeout(() => item.remove(), 6000);
 }
 
@@ -411,6 +506,8 @@ function paintStatus(text) {
 }
 
 function paintCheck() {
+  const root = $("#ap-root");
+  if (root) root.classList.toggle("busy", S.syncing || S.connecting);
   const button = $("#ap-check");
   if (!button) return;
   button.disabled = S.syncing;
@@ -451,19 +548,26 @@ function paintNav() {
   document.title = (list("todo").length ? `(${list("todo").length}) ` : "") + "Class Ping Web";
 }
 
+// Text becomes HTML here, so every piece is escaped: the words between web addresses, and each
+// address (as the link and as its label). A link is only ever a http(s) address.
 function linkify(text) {
-  return esc(text).replace(/https?:\/\/[^\s<]+/g, (url) => {
-    const tail = (url.match(/[.,;:!?)\]]+$/) || [""])[0];
-    const clean = tail ? url.slice(0, -tail.length) : url;
-    return `<a href="${clean}" target="_blank" rel="noopener noreferrer">${clean}</a>${tail}`;
-  });
+  const raw = String(text == null ? "" : text);
+  let out = "", last = 0;
+  for (const m of raw.matchAll(/https?:\/\/[^\s<>"]+/gi)) {
+    const tail = (m[0].match(/[.,;:!?)\]']+$/) || [""])[0];
+    const clean = tail ? m[0].slice(0, -tail.length) : m[0];
+    out += esc(raw.slice(last, m.index)) + `<a href="${esc(clean)}" target="_blank" rel="noopener noreferrer">${esc(clean)}</a>`;
+    last = m.index + clean.length;
+  }
+  return out + esc(raw.slice(last));
 }
 
 function fileTile(file) {
   const badge = FILE_BADGE[file.kind] || "FILE";
-  const picture = file.thumb ? `<img src="${esc(file.thumb)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : `<b>${badge}</b>`;
-  const tag = file.url ? "a" : "span";
-  const link = file.url ? ` href="${esc(file.url)}" target="_blank" rel="noopener noreferrer"` : "";
+  const picture = safeUrl(file.thumb) ? `<img src="${esc(safeUrl(file.thumb))}" alt="" loading="lazy" referrerpolicy="no-referrer">` : `<b>${badge}</b>`;
+  const href = safeUrl(file.url);
+  const tag = href ? "a" : "span";
+  const link = href ? ` href="${esc(href)}" target="_blank" rel="noopener noreferrer"` : "";
   return `<${tag} class="ap-file"${link}><span class="ap-thumb">${picture}</span><span class="ap-fname">${esc(file.name)}</span>` +
     `<span class="ap-fkind">${badge}</span></${tag}>`;
 }
@@ -486,33 +590,36 @@ function initials(name) {
 }
 
 function avatar(post) {
-  const picture = post.authorPhoto
-    ? `<img src="${esc(post.authorPhoto)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : "";
+  const picture = safeUrl(post.authorPhoto)
+    ? `<img src="${esc(safeUrl(post.authorPhoto))}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : "";
   return `<span class="ap-ava" style="background:${colourFor(post.author)}" aria-hidden="true">${esc(initials(post.author))}${picture}</span>`;
 }
 
-function card(post) {
+function card(post, index = 0) {
   const done = isDone(post);
+  const title = post.title || "(no title)";
   const fresh = !S.seenAtLoad.has(post.id) && S.marks.firstSync;
   const section = sectionOf(post);
   const due = post.dueAt ? dueText(post.dueAt) : null;
   const long = post.body.length > 480 || (post.body.match(/\n/g) || []).length > 7;
   const open = S.expanded.has(post.id);
   const move = SECTIONS.map((s) => `<option${s === section ? " selected" : ""}>${s}</option>`).join("");
-  return `<article class="ap-card${done ? " done" : ""}${fresh ? " fresh" : ""}" data-id="${esc(post.id)}">` +
+  const link = safeUrl(post.link);
+  const stagger = S.enter && index < 8 ? ` style="--i:${index}"` : "";
+  return `<article class="ap-card${done ? " done" : ""}${fresh ? " fresh" : ""}${S.popped === post.id ? " popped" : ""}" data-id="${esc(post.id)}"${stagger}>` +
     `<div class="ap-top"><span class="ap-pill k-${esc(post.kind)}">${KIND_LABEL[post.kind] || "Post"}</span>` +
     (fresh ? `<span class="ap-new">New</span>` : "") +
     `<div class="ap-acts">` +
-    (post.link ? `<a class="ap-btn" href="${esc(post.link)}" target="_blank" rel="noopener noreferrer">Open</a>` : "") +
-    `<label class="ap-move" title="Move to another section"><select data-move="${esc(post.id)}" aria-label="Section">${move}</select></label>` +
-    `<button class="ap-btn${done ? "" : " strong"}" data-done="${esc(post.id)}">${done ? "Undo" : "Mark done"}</button></div></div>` +
-    `<h3>${esc(post.title || "(no title)")}</h3>` +
+    (link ? `<a class="ap-btn" href="${esc(link)}" target="_blank" rel="noopener noreferrer" aria-label="${esc("Open in Classroom: " + title)}">Open</a>` : "") +
+    `<label class="ap-move" title="Move to another section"><select data-move="${esc(post.id)}" aria-label="${esc("Section of: " + title)}">${move}</select></label>` +
+    `<button class="ap-btn${done ? "" : " strong"}" data-done="${esc(post.id)}" aria-label="${esc((done ? "Undo done: " : "Mark done: ") + title)}">${done ? "Undo" : "Mark done"}</button></div></div>` +
+    `<h3>${esc(title)}</h3>` +
     `<p class="ap-meta">${post.author ? `${avatar(post)}<b>${esc(post.author)}</b><span class="ap-dot">&middot;</span>` : ""}` +
     `<span>${esc(shortClass(post.courseName))}</span><span class="ap-dot">&middot;</span><span>${esc(friendly(when(post)))}</span></p>` +
     (due ? `<p class="ap-due${due.late ? " late" : ""}">${esc(due.text)}</p>` : "") +
     (post.body ? `<div class="ap-body${long && !open ? " clamp" : ""}">${linkify(post.body)}</div>` : "") +
-    (long ? `<button class="ap-more" data-more="${esc(post.id)}">${open ? "Show less" : "Show more"}</button>` : "") +
-    (post.files.length ? `<div class="ap-files">${post.files.map(fileTile).join("")}</div>` : "") +
+    (long ? `<button class="ap-more" data-more="${esc(post.id)}" aria-expanded="${open}">${open ? "Show less" : "Show more"}</button>` : "") +
+    ((post.files || []).length ? `<div class="ap-files">${post.files.map(fileTile).join("")}</div>` : "") +
     `</article>`;
 }
 
@@ -552,14 +659,17 @@ function paintList() {
   const holder = $("#ap-list");
   if (!holder) return;
   const rows = list(S.view);
+  holder.classList.toggle("enter", Boolean(S.enter) && !calm());      // cards rise in when a list is opened, not on every repaint
   if (!rows.length) {
     const [head, line] = emptyText();
     holder.innerHTML = `<div class="ap-empty"><h2>${esc(head)}</h2><p>${esc(line)}</p></div>`;
+    S.enter = false; S.popped = "";
     return;
   }
   const shown = rows.slice(0, S.limit);
-  holder.innerHTML = shown.map(card).join("") +
+  holder.innerHTML = shown.map((p, i) => card(p, i)).join("") +
     (rows.length > shown.length ? `<button class="ap-btn wide" id="ap-more-posts">Show ${Math.min(PAGE, rows.length - shown.length)} more (${rows.length - shown.length} left)</button>` : "");
+  S.enter = false; S.popped = "";
 }
 
 function paintBanner() {
@@ -640,20 +750,50 @@ function settings() {
     `<p class="small"><a href="../privacy.html">Privacy policy</a> &middot; <a href="../terms.html">Terms</a> &middot; <a href="mailto:${SUPPORT_EMAIL}">Contact</a></p></section>`;
 }
 
+// A repaint replaces the buttons, so the one that had the keyboard focus is found again afterwards.
+function focusKey(el) {
+  if (!el || el === document.body || !el.closest || !el.closest("#ap-root")) return "";
+  if (el.id) return "#" + el.id;
+  const d = el.dataset || {};
+  for (const name of ["done", "move", "more", "view", "course", "act"]) {
+    if (d[name] !== undefined) return `[data-${name}="${CSS.escape(d[name])}"]`;
+  }
+  return "";
+}
+
 function paintAll() {
+  const key = focusKey(document.activeElement);
+  paintEverything();
+  if (key && document.activeElement !== document.querySelector(key)) {
+    const again = document.querySelector("#ap-root " + key) || document.querySelector(key);
+    if (again && !again.disabled) again.focus({ preventScroll: true });
+  }
+}
+
+function paintEverything() {
   const root = $("#ap-root");
   if (!root) return;
   const showWelcome = !S.demo && !S.posts.length && !S.lastSync && S.view !== "settings";
   root.classList.toggle("welcome-mode", showWelcome);
   root.classList.toggle("drawer-open", S.drawer);
-  if (showWelcome) { $("#ap-page").innerHTML = welcome(); paintNav(); return; }
+  root.classList.toggle("busy", S.syncing || S.connecting);
+  const menu = $("#ap-menu");
+  if (menu) menu.setAttribute("aria-expanded", String(S.drawer));
+  if (showWelcome) {
+    const had = $("#ap-page .ap-welcome");
+    $("#ap-page").innerHTML = welcome();
+    if (!had && !calm()) $("#ap-page .ap-wcard").classList.add("enter");
+    paintNav();
+    return;
+  }
   if (!$("#ap-list") && S.view !== "settings") mountPage();
   if (S.view === "settings") {
-    $("#ap-page").innerHTML = `<header class="ap-head"><div><h1 id="ap-title">Settings</h1><p id="ap-note"></p></div></header><div id="ap-banner"></div><div class="ap-settings">${settings()}</div>`;
+    const had = $("#ap-page .ap-settings");
+    $("#ap-page").innerHTML = `<header class="ap-head"><div><h1 id="ap-title">Settings</h1><p id="ap-note"></p></div></header><div id="ap-banner"></div><div class="ap-settings${had || calm() ? "" : " enter"}">${settings()}</div>`;
     paintHead(); paintNav(); paintBanner(); paintCheck();
     return;
   }
-  if ($("#ap-page .ap-settings") || $("#ap-page .ap-welcome")) mountPage();
+  if ($("#ap-page .ap-settings") || $("#ap-page .ap-welcome")) { mountPage(); S.enter = true; }
   paintNav(); paintHead(); paintTools(); paintBanner(); paintList(); paintCheck();
 }
 
@@ -668,25 +808,68 @@ function mountPage() {
 
 // -- events ------------------------------------------------------------------------------
 
+function openDrawer() {
+  S.drawer = true;
+  $("#ap-root").classList.add("drawer-open");
+  $("#ap-menu").setAttribute("aria-expanded", "true");
+  const first = $("#ap-check");
+  if (first) first.focus({ preventScroll: true });
+}
+
+function closeDrawer(giveFocusBack) {
+  S.drawer = false;
+  $("#ap-root").classList.remove("drawer-open");
+  const menu = $("#ap-menu");
+  menu.setAttribute("aria-expanded", "false");
+  if (giveFocusBack && menu.offsetParent !== null) menu.focus({ preventScroll: true });
+}
+
+// Marking a post done: the check pops, the card fades and the row closes up. Undo, or a card
+// that stays in the list, just repaints. With reduced motion there is nothing to wait for.
+function toggleDone(id, button) {
+  const card = button.closest(".ap-card");
+  const next = isDone({ id }) ? null : Date.now();
+  if (card && card.classList.contains("ticking")) return;
+  mark("done", id, next);
+  persist();
+  const leaves = next !== null && !S.showDone;
+  if (!leaves || !card || calm()) {
+    if (next !== null) S.popped = id;
+    const sibling = leaves && card ? (card.nextElementSibling || card.previousElementSibling) : null;
+    const after = sibling && sibling.dataset.id ? sibling.dataset.id : "";
+    paintAll();
+    if (leaves) focusNear(after);
+    return;
+  }
+  const sibling = card.nextElementSibling || card.previousElementSibling;
+  const after = sibling && sibling.dataset.id ? sibling.dataset.id : "";
+  card.style.height = card.offsetHeight + "px";
+  void card.offsetHeight;
+  card.classList.add("ticking");                 // the check pops and the card fades (about 0.2 s) while the row closes up
+  setTimeout(() => { paintAll(); focusNear(after); }, 230);
+}
+
+// After a card leaves, the keyboard goes to its neighbour's button instead of being lost.
+function focusNear(id) {
+  const target = (id && document.querySelector(`.ap-card[data-id="${CSS.escape(id)}"] [data-done]`)) || $("#ap-search");
+  if (target && (!document.activeElement || document.activeElement === document.body)) target.focus({ preventScroll: true });
+}
+
 function wire() {
   document.addEventListener("pointerdown", renewOnClick, true);
 
   $("#ap-root").addEventListener("click", (event) => {
     const t = event.target.closest("button, a, label");
     if (!t) return;
-    if (t.dataset.view) { S.view = t.dataset.view; S.limit = PAGE; S.drawer = false; paintAll(); return; }
-    if (t.dataset.course) { S.course = t.dataset.course; S.limit = PAGE; S.drawer = false; if (S.view === "settings") S.view = "todo"; paintAll(); return; }
-    if (t.dataset.done) {
-      const id = t.dataset.done;
-      if (S.marks.done[id]) delete S.marks.done[id]; else S.marks.done[id] = Date.now();
-      persist(); paintAll(); return;
-    }
+    if (t.dataset.view) { S.view = t.dataset.view; S.limit = PAGE; S.drawer = false; S.enter = true; paintAll(); return; }
+    if (t.dataset.course) { S.course = t.dataset.course; S.limit = PAGE; S.drawer = false; S.enter = true; if (S.view === "settings") S.view = "todo"; paintAll(); return; }
+    if (t.dataset.done) { toggleDone(t.dataset.done, t); return; }
     if (t.dataset.more) { const id = t.dataset.more; if (S.expanded.has(id)) S.expanded.delete(id); else S.expanded.add(id); paintList(); return; }
     if (t.id === "ap-more-posts") { S.limit += PAGE; paintList(); return; }
     if (t.id === "ap-check") { sync(); return; }
     if (t.id === "ap-settings") { S.view = S.view === "settings" ? "todo" : "settings"; S.bulkNote = ""; S.drawer = false; paintAll(); return; }
-    if (t.id === "ap-menu") { S.drawer = !S.drawer; $("#ap-root").classList.toggle("drawer-open", S.drawer); return; }
-    if (t.id === "ap-scrim") { S.drawer = false; $("#ap-root").classList.remove("drawer-open"); return; }
+    if (t.id === "ap-menu") { if (S.drawer) closeDrawer(true); else openDrawer(); return; }
+    if (t.id === "ap-scrim") { closeDrawer(false); return; }
     const act = t.dataset.act;
     if (act === "signin") connect();
     else if (act === "switch" || act === "other") connect("select_account");
@@ -694,7 +877,7 @@ function wire() {
     else if (act === "demo") startDemo();
     else if (act === "old-tick" || act === "old-keep") {
       const n = act === "old-tick" ? oldApply(($("#ap-old-start") || {}).value || "all", true) : 0;
-      S.marks.askedOld = true;
+      flag("askedOld", true);
       persist();
       if (n) toast(`${n} old post${n === 1 ? "" : "s"} ticked off. Settings can bring ${n === 1 ? "it" : "them"} back.`);
       paintAll();
@@ -703,7 +886,7 @@ function wire() {
       const field = $(tick ? "#ap-bulk-tick" : "#ap-bulk-back");
       if (!field || field.disabled) return;
       const n = oldApply(field.value, tick);
-      S.marks.askedOld = true;                       // no need to ask at the start now
+      flag("askedOld", true);                        // no need to ask at the start now
       persist();
       S.bulkNote = `${n} post${n === 1 ? "" : "s"} ${tick ? "ticked off" : "brought back"}.`;
       paintAll();
@@ -712,7 +895,7 @@ function wire() {
 
   $("#ap-root").addEventListener("change", async (event) => {
     const t = event.target;
-    if (t.dataset && t.dataset.move) { S.marks.moved[t.dataset.move] = t.value; persist(); paintAll(); return; }
+    if (t.dataset && t.dataset.move) { mark("moved", t.dataset.move, t.value); persist(); paintAll(); return; }
     if (t.id === "ap-range") { S.range = t.value; S.limit = PAGE; paintAll(); return; }
     if (t.id === "ap-old-start") { S.pick.start = t.value; return; }
     if (t.id === "ap-bulk-tick") { S.pick.tick = t.value; return; }
@@ -721,7 +904,8 @@ function wire() {
     if (t.name === "theme") { setTheme(t.value); return; }
     if (t.id === "ap-notify") {
       if (t.checked && "Notification" in window) {
-        const answer = Notification.permission === "granted" ? "granted" : await Notification.requestPermission();
+        let answer = "denied";
+        try { answer = Notification.permission === "granted" ? "granted" : await Notification.requestPermission(); } catch (e) { /* the browser said no */ }
         store.savePrefs({ notify: answer === "granted" });
         paintAll();
       } else { store.savePrefs({ notify: false }); }
@@ -735,7 +919,8 @@ function wire() {
     typing = setTimeout(() => { S.q = event.target.value.trim(); S.limit = PAGE; paintHead(); paintList(); paintNav(); }, 120);
   });
 
-  document.addEventListener("keydown", (event) => { if (event.key === "Escape" && S.drawer) { S.drawer = false; $("#ap-root").classList.remove("drawer-open"); } });
+  document.addEventListener("keydown", (event) => { if (event.key === "Escape" && S.drawer) closeDrawer(true); });
+  store.listen(otherTab);
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") { saveNow(); return; }
     // Coming back to the tab checks again, unless it was checked a moment ago.
@@ -754,7 +939,7 @@ function wire() {
     if (document.visibilityState !== "visible" || !S.marks.firstSync) return;
     const fresh = S.posts.filter((p) => !S.marks.seen[p.id]);
     if (!fresh.length) return;
-    for (const p of fresh) S.marks.seen[p.id] = 1;
+    for (const p of fresh) mark("seen", p.id, 1);
     persist();
   }, 6000);
 }
@@ -764,18 +949,20 @@ function startDemo() {
   S.demo = true;
   S.courses = data.courses;
   S.posts = data.posts.map(sortPost);
-  S.marks = { done: {}, moved: {}, seen: {}, firstSync: false };
+  S.marks = noMarks();
+  ops = freshOps();
   S.lastSync = new Date().toISOString();
   S.view = "todo";
   S.error = "";
+  S.enter = true;
   paintAll();
 }
 
 function chrome() {
   return `<div id="ap-root" class="ap">` +
-    `<div class="ap-bar"><button id="ap-menu" class="ap-btn" aria-label="Menu">Menu</button><a class="ap-brand" href="../"><img src="../logo.png?v=5" alt="" width="26" height="26">Class Ping<span class="ap-beta">Beta</span></a></div>` +
+    `<div class="ap-bar"><button id="ap-menu" class="ap-btn" aria-expanded="false" aria-controls="ap-side">Menu</button><a class="ap-brand" href="../"><img src="../logo.png?v=5" alt="" width="26" height="26">Class Ping<span class="ap-beta">Beta</span></a></div>` +
     `<div id="ap-scrim"></div>` +
-    `<aside class="ap-side"><a class="ap-brand" href="../"><img src="../logo.png?v=5" alt="" width="28" height="28">Class Ping<span class="ap-beta">Beta</span></a>` +
+    `<aside class="ap-side" id="ap-side"><a class="ap-brand" href="../"><img src="../logo.png?v=5" alt="" width="28" height="28">Class Ping<span class="ap-beta">Beta</span></a>` +
     `<div class="ap-checkrow"><button id="ap-check" class="ap-btn strong big">Check now</button></div>` +
     `<nav id="ap-nav" aria-label="Lists"></nav>` +
     `<div class="ap-side-foot"><div id="ap-foot"></div>` +
@@ -791,16 +978,17 @@ async function boot() {
   S.showDone = prefs.showDone;
   S.email = prefs.email || "";
   wire();
-  const stored = await store.get("posts", []);
-  S.posts = (stored || []).map((p) => (p.section ? p : sortPost(p)));
-  S.courses = await store.get("courses", []);
-  S.names = await store.get("names", {});
-  S.marks = { done: {}, moved: {}, seen: {}, firstSync: false, ...(await store.get("marks", {})) };
-  S.lastSync = await store.get("lastSync", "") || "";
+  const data = await store.readAll(["posts", "courses", "names", "marks", "lastSync"]);
+  S.posts = (data.posts || []).map((p) => (p.section ? p : sortPost(p)));
+  S.courses = data.courses || [];
+  S.names = data.names || {};
+  S.marks = { ...noMarks(), ...(data.marks || {}) };
+  S.lastSync = data.lastSync || "";
   S.seenAtLoad = new Set(Object.keys(S.marks.seen));
   auth.restore();
   if (/[?#&]demo\b/.test(location.search + location.hash)) startDemo();
   else if (!auth.signedIn() && S.posts.length) S.needSignIn = true;
+  S.enter = true;
   paintAll();
   if (auth.signedIn() && !S.demo) sync();
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => { /* works without it */ });
