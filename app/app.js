@@ -575,7 +575,7 @@ function fileTile(file) {
   const href = safeUrl(file.url);
   const tag = href ? "a" : "span";
   const link = href ? ` href="${esc(href)}" target="_blank" rel="noopener noreferrer"` : "";
-  return `<${tag} class="ap-file"${link}><span class="ap-thumb">${picture}</span><span class="ap-ftext"><span class="ap-fname">${esc(file.name).replace(/([-_.])(?=[^\s])/g, "$1<wbr>")}</span>` +
+  return `<${tag} class="ap-file"${link}><span class="ap-thumb">${picture}</span><span class="ap-ftext"><span class="ap-fname" title="${esc(file.name)}">${esc(file.name).replace(/([-_.])(?=[^\s])/g, "$1<wbr>")}</span>` +
     `${hasPicture ? `<span class="ap-fkind">${badge}</span>` : ""}</span></${tag}>`;
 }
 
@@ -881,13 +881,13 @@ function wire() {
   $("#ap-root").addEventListener("click", (event) => {
     const t = event.target.closest("button, a, label");
     if (!t) return;
-    if (t.dataset.view) { S.view = t.dataset.view; S.limit = PAGE; S.drawer = false; S.enter = true; paintAll(); return; }
-    if (t.dataset.course) { S.course = t.dataset.course; S.limit = PAGE; S.drawer = false; S.enter = true; if (S.view === "settings") S.view = "todo"; paintAll(); return; }
+    if (t.dataset.view) { S.view = t.dataset.view; S.limit = PAGE; S.drawer = false; S.enter = true; paintAll(); window.scrollTo(0, 0); return; }
+    if (t.dataset.course) { S.course = t.dataset.course; S.limit = PAGE; S.drawer = false; S.enter = true; if (S.view === "settings") S.view = "todo"; paintAll(); window.scrollTo(0, 0); return; }
     if (t.dataset.done) { toggleDone(t.dataset.done, t); return; }
     if (t.dataset.more) { const id = t.dataset.more; if (S.expanded.has(id)) S.expanded.delete(id); else S.expanded.add(id); paintList(); return; }
     if (t.id === "ap-more-posts") { S.limit += PAGE; paintList(); return; }
     if (t.id === "ap-check") { sync(); return; }
-    if (t.id === "ap-settings") { S.view = S.view === "settings" ? "todo" : "settings"; S.bulkNote = ""; S.drawer = false; paintAll(); return; }
+    if (t.id === "ap-settings") { S.view = S.view === "settings" ? "todo" : "settings"; S.bulkNote = ""; S.drawer = false; paintAll(); window.scrollTo(0, 0); return; }
     if (t.id === "ap-menu") { if (S.drawer) closeDrawer(true); else openDrawer(); return; }
     if (t.id === "ap-scrim") { closeDrawer(false); return; }
     const act = t.dataset.act;
@@ -941,6 +941,17 @@ function wire() {
     typing = setTimeout(() => { S.q = event.target.value.trim(); S.limit = PAGE; paintHead(); paintList(); paintNav(); }, 120);
   });
 
+  // The keyboard reaching a link in the cut-off part of a long post opens the post, so the link is not focused unseen.
+  $("#ap-root").addEventListener("focusin", (event) => {
+    const link = event.target;
+    const body = link.tagName === "A" && link.closest(".ap-body.clamp");
+    if (!body || link.getBoundingClientRect().bottom <= body.getBoundingClientRect().bottom + 1) return;
+    const card = body.closest(".ap-card");
+    S.expanded.add(card.dataset.id);
+    body.classList.remove("clamp");
+    const more = card.querySelector(".ap-more");
+    if (more) { more.textContent = "Show less"; more.setAttribute("aria-expanded", "true"); }
+  });
   document.addEventListener("keydown", (event) => { if (event.key === "Escape" && S.drawer) closeDrawer(true); });
   // Widening the window while the menu is open closes it, so nothing is left unreachable.
   if (window.matchMedia) {

@@ -13,14 +13,14 @@ a.ap-btn:hover, a.ap-nav:hover, a.ap-brand:hover, a.ap-file:hover, a.ap-back:hov
 
 .ap {
   --ap-side: 256px;
-  min-height: 100vh;
+  min-height: calc(100vh / var(--zoom, 1));       /* the text-size setting zooms the page (style.css), so viewport units are divided back */
   display: grid;
   grid-template-columns: var(--ap-side) minmax(0, 1fr);
 }
 
 /* -- sidebar ----------------------------------------------------------------------------- */
 .ap-side {
-  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+  position: sticky; top: 0; height: calc(100vh / var(--zoom, 1)); overflow-y: auto;
   background: var(--sidebar); border-right: 1px solid var(--divider);
   padding: 16px 10px 10px; display: flex; flex-direction: column;
 }
@@ -84,7 +84,7 @@ a.ap-btn:hover, a.ap-nav:hover, a.ap-brand:hover, a.ap-file:hover, a.ap-back:hov
 #ap-search::placeholder { color: var(--faint); }
 #ap-range, .ap-pick, .ap-move select {
   height: 34px; padding: 0 8px; border: 1px solid var(--edge); border-radius: var(--r);
-  background-color: var(--card); color: var(--text); font: 14px var(--ui); cursor: pointer; max-width: 100%;
+  background-color: var(--card); color: var(--text); font: 14px var(--ui); cursor: pointer; max-width: 100%; min-width: 0;
 }
 .ap-pick, .ap-move select { height: 32px; font-size: 13px; }
 .ap-pick:disabled { color: var(--faint); cursor: default; }
@@ -112,7 +112,7 @@ a.ap-btn:hover, a.ap-nav:hover, a.ap-brand:hover, a.ap-file:hover, a.ap-back:hov
 }
 .ap-ask .ap-asktext { flex: 1 1 320px; min-width: 0; color: var(--muted); }
 .ap-ask b { font-weight: 600; color: var(--text); }
-.ap-askrow { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.ap-askrow { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; min-width: 0; max-width: 100%; }
 
 /* -- posts: a row each, a hairline between ------------------------------------------------- */
 .ap-listing { display: flex; flex-direction: column; margin-top: 4px; }
@@ -160,7 +160,7 @@ a.ap-file:hover { border-color: var(--edge); color: var(--text); }
 /* -- welcome ----------------------------------------------------------------------------- */
 .ap.welcome-mode { grid-template-columns: minmax(0, 1fr); }
 .ap.welcome-mode .ap-side, .ap.welcome-mode .ap-bar { display: none; }
-.ap-welcome { min-height: 90vh; display: flex; align-items: center; justify-content: center; }
+.ap-welcome { min-height: calc(90vh / var(--zoom, 1)); display: flex; align-items: center; justify-content: center; }
 .ap-wcard { width: 100%; max-width: 480px; }
 .ap-wcard img { display: block; margin-bottom: 16px; }
 .ap-wcard h1 { margin: 0 0 8px; font: 600 28px/1.2 var(--ui); }
@@ -187,7 +187,7 @@ a.ap-file:hover { border-color: var(--edge); color: var(--text); }
 .ap-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .ap-row b { display: block; font-weight: 600; }
 .ap-row small { display: block; color: var(--muted); font-size: 13px; }
-.ap-rowbtns { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.ap-rowbtns { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; min-width: 0; max-width: 100%; }
 .ap-row.gap { margin-top: 16px; }
 .ap-linkrow { display: flex; flex-wrap: wrap; align-items: center; gap: 0 4px; }
 .ap-linkrow a { display: inline-block; padding: 4px 0; text-decoration: none; }
@@ -211,7 +211,7 @@ label.ap-row:has(#ap-notify:not(:disabled)) { cursor: pointer; }
 .ap-choice:has(input:focus-visible) { outline: 2px solid var(--link); outline-offset: 2px; }
 
 /* -- toasts ------------------------------------------------------------------------------ */
-#ap-toasts { position: fixed; right: 16px; bottom: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 60; max-width: min(360px, calc(100vw - 32px)); }
+#ap-toasts { position: fixed; right: 16px; bottom: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 60; max-width: min(360px, calc((100vw - 32px) / var(--zoom, 1))); }
 .ap-toast { padding: 10px 14px; border: 1px solid var(--edge); border-radius: var(--r-pop); background: var(--card); color: var(--text); font-size: 14px; }
 
 /* -- phone and narrow windows ------------------------------------------------------------- */
@@ -226,7 +226,7 @@ label.ap-row:has(#ap-notify:not(:disabled)) { cursor: pointer; }
   .ap-bar .ap-brand { margin: 0; font-size: 16px; }
   /* closed: off screen and hidden, so the keyboard cannot tab into it */
   .ap-side {
-    position: fixed; left: 0; top: 0; bottom: 0; width: min(290px, 86vw); z-index: 50;
+    position: fixed; left: 0; top: 0; bottom: 0; height: auto; width: min(290px, calc(86vw / var(--zoom, 1))); z-index: 50;
     transform: translateX(-102%); visibility: hidden; transition: transform 0.2s ease, visibility 0s linear 0.2s;
   }
   .ap-side .ap-brand { margin-top: 2px; }
@@ -244,6 +244,7 @@ label.ap-row:has(#ap-notify:not(:disabled)) { cursor: pointer; }
   .ap-more { min-height: 44px; padding: 0 4px 0 0; }
   .ap-link { min-height: 44px; }
   .ap-google { height: 44px; }
+  .ap-agree { padding: 11px 0; margin-bottom: 3px; }
   .ap-switch { min-height: 44px; }
   .ap-back { min-height: 44px; }
   .ap-brand { min-height: 44px; }
@@ -314,5 +315,6 @@ html.theme-fade, html.theme-fade * { transition: background-color 0.2s ease, col
 /* narrow screens: the way back sits above the card instead of floating over it */
 @media (max-width: 860px) {
   .ap-back { position: static; margin: 0 0 14px; }
+  .ap-wcard .ap-btn.wide { height: 44px; }
   .ap-welcome { min-height: 0; padding-bottom: 24px; display: block; }
 }

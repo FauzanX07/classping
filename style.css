@@ -185,6 +185,7 @@ strong { font-weight: 600; }
 .table-wrap { overflow-x: auto; }
 .doc table { width: 100%; border-collapse: collapse; margin: 8px 0 18px; font-size: 15px; }
 .doc th, .doc td { text-align: left; vertical-align: top; padding: 12px 0; border-top: 1px solid var(--divider); }
+.doc a { overflow-wrap: anywhere; }
 .doc th { font-weight: 600; color: var(--text); width: 30%; padding-right: 20px; }
 .doc td { color: var(--muted); }
 code { font-family: var(--mono); font-size: 14px; background: var(--raised); padding: 1px 5px; border-radius: 3px; }
@@ -434,11 +435,14 @@ footer a:hover, footer a:focus-visible, .toc a:hover, .toc a:focus-visible { tex
   }
   .js .top.open nav { opacity: 1; transform: none; visibility: visible; }
   .js .top nav a { height: 44px; padding: 0 8px; font-size: 16px; }
+  .top .brand { min-height: 44px; }
   html:not(.js) .top .wrap { height: auto; padding-top: 10px; padding-bottom: 10px; flex-wrap: wrap; gap: 8px; }
   html:not(.js) .top nav { flex-wrap: wrap; }
 }
 
 /* -- text size and links, from Settings -- */
+:root[data-text="small"] { --zoom: 0.9; }
+:root[data-text="large"] { --zoom: 1.15; }
 :root[data-text="small"] body { zoom: 0.9; }
 :root[data-text="large"] body { zoom: 1.15; }
 /* only links inside running text; buttons, tiles, nav rows and link lists stay plain */

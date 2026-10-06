@@ -46,6 +46,7 @@
     root.setAttribute("data-text", prefs.text);
     root.setAttribute("data-links", prefs.links);
     proofs(prefs.theme);
+    homePicture(prefs.theme);
   }
 
   // The pictures of the app on the privacy page follow the chosen look: img[data-proof="img/name"]
@@ -64,8 +65,26 @@
       pic.src = want;
     }
   }
-  document.addEventListener("DOMContentLoaded", function () { proofs(read().theme); });
-  if (dark && dark.addEventListener) dark.addEventListener("change", function () { proofs(read().theme); });
+  // The home page picture: the dark picture for the dark looks, the light one for the light looks,
+  // the phone-size one on a narrow screen. Without scripts the picture follows the device instead.
+  var DARK_LOOKS = { graphite: 1, "study-lamp": 1, chalkboard: 1, "midnight-ink": 1, ebony: 1 };
+  function homePicture(theme) {
+    var img = document.querySelector("img[data-home]");
+    if (!img) return;
+    var isDark = theme === "system" ? !!(dark && dark.matches) : !!DARK_LOOKS[theme];
+    var phone = window.matchMedia && window.matchMedia("(max-width: 640px)").matches;
+    var want = img.getAttribute("data-home") + (phone ? "-phone" : "") + (isDark ? "-dark" : "") + ".png?v=1";
+    if (img.getAttribute("data-shown") === want) return;
+    var sources = img.parentNode.querySelectorAll("source");     // they would override the choice
+    for (var i = 0; i < sources.length; i++) sources[i].parentNode.removeChild(sources[i]);
+    img.setAttribute("data-shown", want);
+    img.src = want;
+  }
+  var narrow = window.matchMedia ? window.matchMedia("(max-width: 640px)") : null;
+  function pictures() { var t = read().theme; proofs(t); homePicture(t); }
+  document.addEventListener("DOMContentLoaded", pictures);
+  if (narrow && narrow.addEventListener) narrow.addEventListener("change", pictures);
+  if (dark && dark.addEventListener) dark.addEventListener("change", pictures);
 
   // Before the page draws, so it never flashes the wrong colours.
   root.classList.add("js");
