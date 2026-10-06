@@ -2,7 +2,7 @@
 // IndexedDB; this keeps the page itself). Network first, so a new version of the
 // site is always picked up when online. Only this site's own files are kept:
 // requests to Google are never touched.
-const CACHE = "classping-web-v6";       // bump with the ?v= on app.js; old copies are dropped when this changes
+const CACHE = "classping-web-v7";       // bump with the ?v= on app.js; old copies are dropped when this changes
 
 self.addEventListener("install", (event) => { self.skipWaiting(); });
 

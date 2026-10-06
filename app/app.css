@@ -150,7 +150,7 @@ a.ap-file:hover { border-color: var(--edge); color: var(--text); }
 .ap-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .ap-thumb b { font: 600 11px/1 var(--ui); }
 .ap-ftext { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-.ap-fname { font-size: 13.5px; line-height: 1.3; overflow: hidden; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.ap-fname { font-size: 13.5px; line-height: 1.3; overflow: hidden; overflow-wrap: break-word; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .ap-fkind { font: 600 11px/1 var(--ui); color: var(--muted); }
 
 .ap-empty { padding: 36px 0; color: var(--muted); }

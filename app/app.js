@@ -575,7 +575,7 @@ function fileTile(file) {
   const href = safeUrl(file.url);
   const tag = href ? "a" : "span";
   const link = href ? ` href="${esc(href)}" target="_blank" rel="noopener noreferrer"` : "";
-  return `<${tag} class="ap-file"${link}><span class="ap-thumb">${picture}</span><span class="ap-ftext"><span class="ap-fname">${esc(file.name)}</span>` +
+  return `<${tag} class="ap-file"${link}><span class="ap-thumb">${picture}</span><span class="ap-ftext"><span class="ap-fname">${esc(file.name).replace(/([-_.])(?=[^\s])/g, "$1<wbr>")}</span>` +
     `${hasPicture ? `<span class="ap-fkind">${badge}</span>` : ""}</span></${tag}>`;
 }
 
