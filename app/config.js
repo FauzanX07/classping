@@ -17,12 +17,22 @@ export const SCOPES = [
   G + "classroom.rosters.readonly",
   G + "userinfo.email",
 ];
-// Google sometimes reports a permission under its old name.
+// Google sometimes reports a permission under its old (or a short) name.
 export const ALIASES = {
+  email: G + "userinfo.email",
   [G + "classroom.student-submissions.me.readonly"]: G + "classroom.coursework.me.readonly",
 };
 // Without these three there is nothing to show.
 export const ESSENTIAL = SCOPES.slice(0, 3);
+// The boxes on Google's permission page, in the words it uses (the same words as the Windows app).
+export const BOX_WORDS = {
+  [G + "classroom.courses.readonly"]: "your classes",
+  [G + "classroom.announcements.readonly"]: "announcements",
+  [G + "classroom.coursework.me.readonly"]: "your classwork",
+  [G + "classroom.courseworkmaterials.readonly"]: "class materials",
+  [G + "classroom.rosters.readonly"]: "teacher names",
+  [G + "userinfo.email"]: "your email address",
+};
 
 // The date the terms and privacy policy last changed (their "Last updated" line). Changing it
 // asks everyone to agree again.

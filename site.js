@@ -47,6 +47,24 @@
     root.setAttribute("data-links", prefs.links);
     proofs(prefs.theme);
     homePicture(prefs.theme);
+    barColour(prefs.theme);
+  }
+
+  // The colour of the browser's own bar on a phone follows the chosen look (the page's own tags only
+  // follow the device). "Match my device" goes back to those.
+  var BAR = { light: "#FFFFFF", graphite: "#202020", "study-lamp": "#1B201D", parchment: "#F7F2E8",
+    chalkboard: "#1C2B24", "midnight-ink": "#171D2E", ebony: "#000000" };
+  window.classPingBar = barColour;
+  function barColour(theme) {
+    var own = document.querySelector("meta[name=theme-color][data-own]");
+    if (!BAR[theme]) { if (own) own.parentNode.removeChild(own); return; }
+    if (!own) {
+      own = document.createElement("meta");
+      own.setAttribute("name", "theme-color");
+      own.setAttribute("data-own", "");
+      document.head.insertBefore(own, document.head.firstChild);
+    }
+    own.setAttribute("content", BAR[theme]);
   }
 
   // The pictures of the app on the privacy page follow the chosen look: img[data-proof="img/name"]

@@ -3,12 +3,14 @@
 // requests that leave it go to Google.
 
 // The ?v= below goes up with the one on app.js in index.html, so a new deploy never mixes old and new files.
-import * as auth from "./auth.js?v=15";
-import * as api from "./api.js?v=15";
-import * as store from "./store.js?v=15";
-import { classify } from "./sort.js?v=15";
-import { sample } from "./demo.js?v=15";
-import { SYNC_EVERY_MS, FIRST_READ_MOST, REFRESH_READ_MOST, SUPPORT_EMAIL, TERMS_VERSION } from "./config.js?v=15";
+import * as auth from "./auth.js?v=16";
+import * as api from "./api.js?v=16";
+import * as store from "./store.js?v=16";
+import { classify } from "./sort.js?v=16";
+import { sample } from "./demo.js?v=16";
+import { SYNC_EVERY_MS, FIRST_READ_MOST, REFRESH_READ_MOST, SUPPORT_EMAIL, TERMS_VERSION } from "./config.js?v=16";
+
+const EMAIL_SCOPE = "https://www.googleapis.com/auth/userinfo.email";
 
 const SECTIONS = ["Homework", "Classwork", "Important", "Extra", "Notes"];
 const KIND_LABEL = { announcement: "Announcement", assignment: "Assignment", material: "Material", question: "Question" };
@@ -23,7 +25,7 @@ const S = {
   view: "todo", course: "any", range: "any", showDone: false, q: "", limit: PAGE,
   posts: [], courses: [], names: {}, marks: { done: {}, moved: {}, seen: {}, firstSync: false },
   email: "", demo: false, lastSync: "", syncing: false, needSignIn: false, error: "", status: "",
-  seenAtLoad: new Set(), drawer: false, expanded: new Set(), connecting: false,
+  seenAtLoad: new Set(), drawer: false, expanded: new Set(), connecting: false, reconsent: false,
   gen: 0,                                                     // bumps when a different account starts over
   pick: { start: "", tick: "", back: "" }, bulkNote: "",     // the old-work choices and what the last one did
 };
@@ -283,10 +285,20 @@ function explain(error) {
     return "Google says your school's admin needs to review Class Ping, so it has not been approved there yet. Try a personal Google account, or use the Windows app's Full features.";
   }
   const status = error && error.status;
+  if (lacksPermission(error)) return partialText([]);
   if (status === 429) return "Google says Class Ping is asking too often. Wait a minute and press Check now.";
   if (status >= 500) return "Google could not answer just now. Try again in a moment.";
   if (/failed to fetch|networkerror|load failed/i.test(text)) return "Could not reach Google. Check your connection and press Check now.";
   return text || "Something went wrong.";
+}
+
+// Google answering 403 because a permission box was left empty (or taken back later).
+function lacksPermission(error) {
+  return Boolean(error && error.status === 403 && /scope|insufficient|permission_denied|access_token/i.test(String(error.reason || "") + " " + String(error.message || "")));
+}
+function partialText(list) {
+  const named = list && list.length ? " (" + auth.words(list) + ")" : "";
+  return "Google's permission page had some boxes left empty" + named + ". Press Sign in again, then on Google's page tick every box (or Select all) and press Continue.";
 }
 
 let syncRun = 0, syncOf = -1;
@@ -362,6 +374,10 @@ async function sync({ quiet = false } = {}) {
     if (error && error.status === 401) {
       if (!auth.token() || auth.token() === token) auth.forgetToken();     // not a newer one a click just renewed
       S.needSignIn = !auth.signedIn();
+    } else if (lacksPermission(error)) {
+      if (!auth.token() || auth.token() === token) { auth.signOut(); S.reconsent = true; }   // give the half permission back
+      S.needSignIn = !auth.signedIn();
+      S.error = partialText([]);
     } else {
       S.error = explain(error);
     }
@@ -411,23 +427,37 @@ async function connect(prompt = "") {
   paintAll();
   const gen = S.gen;
   try {
-    await auth.signIn({ prompt, hint: prompt === "select_account" ? "" : S.email });
+    // After a sign-in with boxes left empty, Google is asked to show its permission page again.
+    const ask = prompt || (S.reconsent ? "consent" : "");
+    await auth.signIn({ prompt: ask, hint: prompt === "select_account" ? "" : S.email });
     if (gen !== S.gen) { auth.forgetToken(); return; }      // erased or switched while Google's window was open
     const missing = auth.missing();
     if (missing.length) {
-      auth.forgetToken();
-      S.error = "Class Ping needs every box ticked on Google's page to read your classes, announcements and classwork. Press Sign in and tick them all.";
+      // Never signed in with an essential box left empty: say which one, and give back what was granted.
+      auth.signOut();
+      S.reconsent = true;
+      S.error = partialText(missing);
+      return;
+    }
+    let who = "";
+    try { who = await auth.email(); } catch (e) { /* handled just below */ }
+    if (gen !== S.gen) { auth.forgetToken(); return; }
+    if (!who) {
+      // Without the address, one account cannot be told from another, so nothing is kept for it.
+      const noBox = auth.notGranted().includes(EMAIL_SCOPE);
+      auth.signOut();
+      S.reconsent = true;
+      S.error = noBox ? partialText([EMAIL_SCOPE])
+        : "Class Ping could not read your Google email address. Check your connection and press Sign in again.";
       return;
     }
     if (S.demo) { S.demo = false; S.posts = []; S.courses = []; S.lastSync = ""; S.marks = noMarks(); ops = freshOps(); }
-    let who = "";
-    try { who = await auth.email(); } catch (e) { /* the address is only shown */ }
-    if (gen !== S.gen) { auth.forgetToken(); return; }
-    if (who && S.email && who.toLowerCase() !== S.email.toLowerCase()) {
+    if (S.email && who.toLowerCase() !== S.email.toLowerCase()) {
       // A different account: the old one's classes, posts and ticks must not stay.
       await startOver();
     }
-    S.email = who || S.email;
+    S.email = who;
+    S.reconsent = false;
     store.savePrefs({ email: S.email });
     S.needSignIn = false;
   } catch (error) {
@@ -452,6 +482,10 @@ function renewOnClick() {
   auth.signIn({ prompt: "none", hint: S.email })
     .then(() => {
       if (gen !== S.gen) { auth.forgetToken(); return; }     // erased or switched while Google was answering
+      const short = auth.missing();
+      if (short.length) {                                    // a box was taken back in the Google account
+        auth.signOut(); S.reconsent = true; S.needSignIn = true; S.error = partialText(short); paintAll(); return;
+      }
       S.needSignIn = false; paintAll(); sync({ quiet: true });
     })
     .catch(() => { if (!auth.signedIn()) { S.needSignIn = true; paintAll(); } })
@@ -487,6 +521,7 @@ function setTheme(theme) {
   root.classList.add("theme-fade");              // colours ease over for a moment (style.css), only when the look is changed
   setTimeout(() => root.classList.remove("theme-fade"), 400);
   if (theme === "system") root.removeAttribute("data-theme"); else root.setAttribute("data-theme", theme);
+  if (window.classPingBar) window.classPingBar(theme);        // the phone's own bar (site.js)
 }
 
 // -- drawing -----------------------------------------------------------------------------
@@ -700,7 +735,7 @@ function paintBanner() {
       `<div class="ap-askrow">${oldSelect("ap-old-start", false, S.pick.start, "How much old work to tick off")}` +
       `<button class="ap-btn strong" data-act="old-tick">Tick off</button><button class="ap-btn" data-act="old-keep">Keep all</button></div></div>`;
   }
-  if (S.error) html += `<div class="ap-note-bar warn"><span>${esc(S.error)}</span></div>`;
+  if (S.error) html += `<div class="ap-note-bar warn" role="alert"><span>${esc(S.error)}</span></div>`;
   holder.innerHTML = html;
 }
 
@@ -728,9 +763,9 @@ function welcome() {
     `<a href="../privacy.html" target="_blank" rel="noopener">Privacy policy</a>.</span></label>` +
     (ready ? googleButton(S.connecting ? "Waiting for Google..." : S.syncing ? (S.status || "Reading your Classroom...") : "Sign in with Google")
       : `<p class="ap-warn-text">Sign-in is not switched on for this site yet.</p>`) +
+    (S.error ? `<p class="ap-warn-text" role="alert">${esc(S.error)}</p>` : "") +
     (ready ? `<button class="ap-link" data-act="other"${termsOk() ? "" : " disabled"}>Use a different Google account</button>` : "") +
     `<button class="ap-btn wide" data-act="demo"${termsOk() ? "" : " disabled"}>Try it with sample posts</button>` +
-    (S.error ? `<p class="ap-warn-text">${esc(S.error)}</p>` : "") +
     `<p class="small">A web page can only notify you while it is open. For alerts all day, even with the browser closed, use <a href="../download.html">the Windows app</a>. ` +
     `</p><p class="small ap-linkrow"><a href="../privacy.html">Privacy</a><i>&middot;</i><a href="../terms.html">Terms</a><i>&middot;</i><a href="../privacy.html#google-sign-in">Where your password goes</a></p>` +
     `</div></div>`;
@@ -1013,12 +1048,13 @@ function chrome() {
 }
 
 async function boot() {
-  document.body.innerHTML = chrome();
   const prefs = store.prefs();
   S.showDone = prefs.showDone;
   S.email = prefs.email || "";
-  wire();
+  // What is saved is read first, so the sidebar is not drawn for a moment and then taken away on the welcome screen.
   const data = await store.readAll(["posts", "courses", "names", "marks", "lastSync"]);
+  document.body.innerHTML = chrome();
+  wire();
   S.posts = (data.posts || []).map((p) => (p.section ? p : sortPost(p)));
   S.courses = data.courses || [];
   S.names = data.names || {};

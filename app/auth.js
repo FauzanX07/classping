@@ -6,7 +6,7 @@
 // a new token is asked for when the old one runs low -- quietly, using Google's
 // existing session -- and if Google needs a click, the page says so.
 
-import { CLIENT_ID, SCOPES, ALIASES, ESSENTIAL } from "./config.js?v=15";
+import { CLIENT_ID, SCOPES, ALIASES, ESSENTIAL, BOX_WORDS } from "./config.js?v=16";
 
 const KEEP = "classping-web-token";      // sessionStorage: survives a reload, not a closed tab
 let loading = null;
@@ -40,6 +40,7 @@ export function restore() {
     const saved = JSON.parse(sessionStorage.getItem(KEEP) || "null");
     if (saved && saved.token && saved.expiresAt > Date.now() + 30000) current = saved;
   } catch (e) { /* nothing kept */ }
+  if (current.token && missing().length) forgetToken();      // never signed in with a box left empty
   return signedIn();
 }
 
@@ -54,7 +55,18 @@ function names(scopeText) {
 }
 
 export function missing() {
-  return ESSENTIAL.filter((scope) => !current.scopes.includes(scope));
+  return ESSENTIAL.filter((scope) => !(current.scopes || []).includes(scope));
+}
+
+// Every requested box Google did not grant, as full names (for saying which one was left empty).
+export function notGranted() {
+  return SCOPES.filter((scope) => !(current.scopes || []).includes(scope));
+}
+
+// "announcements and your classwork"
+export function words(list) {
+  const names = list.map((scope) => BOX_WORDS[scope] || scope);
+  return names.length < 2 ? names.join("") : names.slice(0, -1).join(", ") + " and " + names[names.length - 1];
 }
 
 function handle(response) {

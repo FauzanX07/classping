@@ -92,14 +92,19 @@ export async function save(plain, mergeMarks, allow) {
       let result = null;
       os.get("marks").onsuccess = (a) => {
         os.get("lastSync").onsuccess = (b) => {
-          if (allow && !allow()) { result = { skipped: true }; return; }
-          const theirs = Date.parse(b.target.result || "") || 0;
-          const ours = Date.parse(plain.lastSync || "") || 0;
-          const keep = ours >= theirs;
-          if (keep) for (const [key, value] of Object.entries(plain)) os.put(value, key);
-          const marks = mergeMarks(a.target.result || {});
-          os.put(marks, "marks");
-          result = { marks, postsKept: keep };
+          try {
+            if (allow && !allow()) { result = { skipped: true }; return; }
+            const theirs = Date.parse(b.target.result || "") || 0;
+            const ours = Date.parse(plain.lastSync || "") || 0;
+            const keep = ours >= theirs;
+            if (keep) for (const [key, value] of Object.entries(plain)) os.put(value, key);
+            const marks = mergeMarks(a.target.result || {});
+            os.put(marks, "marks");
+            result = { marks, postsKept: keep };
+          } catch (e) {                      // a full disk or a value the browser refuses: nothing is half saved
+            result = null;
+            try { tx.abort(); } catch (e2) { /* already over */ }
+          }
         };
       };
       tx.oncomplete = () => resolve(result);
@@ -127,17 +132,25 @@ export async function wipe() {
 const PREFS = "classping-web-prefs";
 const DEFAULT_PREFS = { notify: false, range: "any", showDone: false, email: "", terms: "" };
 
+// When the browser will not keep anything (a private window, strict settings), the choices made in
+// this tab are held in memory instead, so the page still works until it is closed.
+let blocked = false;
+let memory = {};
+
 export function prefs() {
-  try { return { ...DEFAULT_PREFS, ...(JSON.parse(localStorage.getItem(PREFS) || "{}") || {}) }; }
-  catch (e) { return { ...DEFAULT_PREFS }; }
+  let stored = {};
+  try { stored = JSON.parse(localStorage.getItem(PREFS) || "{}") || {}; } catch (e) { blocked = true; }
+  return { ...DEFAULT_PREFS, ...stored, ...(blocked ? memory : {}) };
 }
 
 export function savePrefs(patch) {
   const next = { ...prefs(), ...patch };
-  try { localStorage.setItem(PREFS, JSON.stringify(next)); } catch (e) { /* blocked */ }
+  memory = { ...memory, ...patch };
+  try { localStorage.setItem(PREFS, JSON.stringify(next)); } catch (e) { blocked = true; }
   return next;
 }
 
 export function forgetPrefs() {
+  memory = {};
   try { localStorage.removeItem(PREFS); } catch (e) { /* blocked */ }
 }

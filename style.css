@@ -226,14 +226,14 @@ footer a:hover, footer a:focus-visible, .toc a:hover, .toc a:focus-visible { tex
 /* tags: small flat rectangles */
 .tag, .badge {
   display: inline-block;
-  font: 600 12px/1 var(--ui);
+  font: 600 12px/1.25 var(--ui);
   color: var(--muted);
   border: 1px solid var(--edge);
   border-radius: 3px;
-  padding: 3px 6px;
+  padding: 3px 7px 4px;
 }
 .badge { margin-bottom: 10px; }
-.tag { vertical-align: 2px; margin-left: 6px; }
+.tag { vertical-align: 1px; margin-left: 6px; }
 
 /* -- download page -- */
 .download {
@@ -332,6 +332,11 @@ footer a:hover, footer a:focus-visible, .toc a:hover, .toc a:focus-visible { tex
 .saved { color: var(--muted); font-size: 14px; opacity: 0; }
 .saved.show { opacity: 1; }
 .no-js-note { color: var(--muted); }
+/* the settings are drawn by site.js a moment after the page: their room is kept, so the footer does not jump down */
+.js .no-js-note { display: none; }
+.js #settings-root { min-height: 640px; }
+@media (max-width: 900px) { .js #settings-root { min-height: 720px; } }
+@media (max-width: 640px) { .js #settings-root { min-height: 800px; } }
 
 /* -- the short call to action at the foot of the home page -- */
 .cta { display: flex; justify-content: space-between; align-items: center; gap: 24px; flex-wrap: wrap; }
@@ -389,6 +394,7 @@ footer a:hover, footer a:focus-visible, .toc a:hover, .toc a:focus-visible { tex
   .actions .button { flex: 1 1 100%; }
   footer a, .toc a { min-height: 44px; display: inline-flex; align-items: center; }
   .segmented .choice .face { padding: 11px 14px; }
+  .shot img { aspect-ratio: 780 / 1490; }      /* the phone picture is tall: its room is kept while it loads */
 }
 
 /* -- the phone menu: the pages, one per line -- */
