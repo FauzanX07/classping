@@ -1,0 +1,5 @@
+Contact: mailto:classpingsupport@gmail.com
+Expires: 2027-10-12T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://classping.wazeem.com/.well-known/security.txt
+Policy: https://classping.wazeem.com/security.html

@@ -21,6 +21,11 @@
     <priority>0.5</priority>
   </url>
   <url>
+    <loc>https://classping.wazeem.com/security.html</loc>
+    <lastmod>2026-10-12</lastmod>
+    <priority>0.5</priority>
+  </url>
+  <url>
     <loc>https://classping.wazeem.com/privacy.html</loc>
     <lastmod>2026-10-04</lastmod>
     <priority>0.3</priority>

@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://accounts.google.com/gsi/client; connect-src 'self' https://classroom.googleapis.com https://www.googleapis.com https://oauth2.googleapis.com https://accounts.google.com; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; frame-src https://accounts.google.com; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'; worker-src 'self'">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta property="og:site_name" content="Class Ping">
+  <meta property="og:title" content="How Class Ping keeps your Classroom safe">
+  <meta property="og:description" content="Your Google Classroom, sorted into a to-do list, with a ping when something is new. Free for Windows.">
+  <meta property="og:image" content="https://classping.wazeem.com/social.png?v=6">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <title>How Class Ping keeps your Classroom safe</title>
+  <meta name="description" content="What Class Ping does to keep your Google Classroom data private and protected, and what it cannot promise.">
+  <link rel="canonical" href="https://classping.wazeem.com/security.html">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="192x192" href="/logo.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png?v=6">
+  <link rel="stylesheet" href="style.css?v=19">
+  <script src="site.js?v=12"></script>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="./"><img src="logo.png?v=6" alt="" width="30" height="30">Class Ping</a>
+    <button type="button" class="menu-toggle" aria-expanded="false" aria-controls="site-nav"><span class="bars" aria-hidden="true"></span>Menu</button>
+    <nav id="site-nav" aria-label="Pages">
+      <a href="./">Home</a>
+      <a href="download.html">Download</a>
+      <a href="app/">Web app</a>
+      <a href="support.html">Support</a>
+      <a href="privacy.html">Privacy</a>
+      <a href="terms.html">Terms</a>
+      <a class="nav-settings" href="settings.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span>Settings</span></a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <div class="page-intro">
+    <h1>How Class Ping keeps your Classroom safe</h1>
+    <p>What it does, in plain words, and what it cannot promise.</p>
+  </div>
+
+  <div class="page-body">
+    <div class="block">
+      <h2>The short version</h2>
+      <p>Your classes stay with you. Class Ping has no account system and no server of its own that holds your classwork, so there is no central store of classrooms that could be broken into and leaked. What it reads goes from Google to your own PC (or your own browser) and stops there.</p>
+    </div>
+
+    <div class="block">
+      <h2>On your PC (the Windows app)</h2>
+      <ul>
+        <li><strong>Saved posts are encrypted.</strong> The saved posts, with class names, teacher names, due dates and ticks, are kept in a database encrypted with AES-256. Opening the file with another program shows nothing readable.</li>
+        <li><strong>The key is protected by Windows.</strong> The key is made on your PC and sealed with Windows' own protection for your Windows user. A copy of the files taken to another PC, or another user on the same PC, cannot open the database.</li>
+        <li><strong>Sign-in details and keys are sealed too.</strong> Your Google permission and any AI key you add are encrypted with Windows' protection, never stored as plain text.</li>
+        <li><strong>Read-only.</strong> The normal sign-in asks Google only for permission to read. It cannot post, hand in, change or delete anything in your Classroom.</li>
+        <li><strong>You sign in on Google's page.</strong> Class Ping never sees your Google password. The sign-in uses a one-time code check (PKCE) so a sign-in cannot be hijacked on its way back.</li>
+        <li><strong>Encrypted connections only.</strong> Everything that leaves your PC goes over HTTPS with the certificate checked.</li>
+        <li><strong>You can erase it.</strong> Settings &rarr; Your data &rarr; Erase saved data removes every saved post, picture and activity record straight away. Signing out erases them too, and the activity log is kept small.</li>
+        <li><strong>No analytics, no ads, no account.</strong> Class Ping does not send your classwork anywhere.</li>
+      </ul>
+    </div>
+
+    <div class="block">
+      <h2>In your browser (the web version)</h2>
+      <ul>
+        <li>The page is served over HTTPS and carries a strict content-security policy: it can load code only from Class Ping itself and Google's sign-in, and it can talk only to Google's own servers.</li>
+        <li>You approve read-only access on Google's own screen. The short-lived permission lives only in that browser tab and is gone when you close it.</li>
+        <li>Posts are kept in your browser's own storage on your device, never uploaded. Sign out and they are erased.</li>
+      </ul>
+    </div>
+
+    <div class="block">
+      <h2>What it cannot promise</h2>
+      <ul>
+        <li>No software is unhackable, and we will not say so. A PC that has a virus, or that someone else is signed in to as you, is not made safe by any app.</li>
+        <li>Windows protection ties the key to your Windows user. Anyone who can sign in to Windows as you can use your apps as you, so lock your PC and use a strong Windows password.</li>
+        <li>Attachment files you choose to open or save are ordinary files in your folder. Class Ping erases the ones it saved when you sign out or erase your data, but not copies you make yourself.</li>
+        <li>The optional Full features mode signs in to Classroom in Chrome. Chrome keeps that sign-in the way it does for any website.</li>
+      </ul>
+    </div>
+
+    <div class="block">
+      <h2>Found a security problem?</h2>
+      <p>Please tell us first and give us a little time to fix it: <a href="mailto:classpingsupport@gmail.com">classpingsupport@gmail.com</a>. Thank you; we read every report. The full details of what is kept and for how long are in the <a href="privacy.html">privacy policy</a>.</p>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div>
+      <p class="copyright">&copy; 2026 Class Ping. All rights reserved. Developed by Fauzan Khan.</p>
+      <p>Class Ping is not made by, affiliated with, or endorsed by Google. Google Classroom and Google Chrome are trademarks of Google LLC. Windows and Microsoft Store are trademarks of Microsoft.</p>
+    </div>
+    <div class="foot-links"><a href="app/">Web app</a><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a><a href="https://apps.microsoft.com/detail/9n9698qbxttg" rel="noopener">&#9733; Rate</a><a href="support.html">Support</a><a href="mailto:classpingsupport@gmail.com">Contact</a></div>
+  </div>
+</footer>
+
+</body>
+</html>
