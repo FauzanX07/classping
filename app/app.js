@@ -1043,7 +1043,7 @@ function chrome() {
     `<button id="ap-settings" class="ap-nav"><span>Settings</span></button>` +
     `<a class="ap-nav" href="mailto:${SUPPORT_EMAIL}?subject=Class%20Ping%20feedback"><span>Send feedback</span></a>` +
     `<a class="ap-nav" href="../"><span>Class Ping home</span></a>` +
-    `<p class="ap-legal"><a href="../privacy.html">Privacy</a><i>&middot;</i><a href="../terms.html">Terms</a></p></div></aside>` +
+    `<p class="ap-legal"><a href="../privacy.html">Privacy</a><i>&middot;</i><a href="../terms.html">Terms</a><i>&middot;</i><a href="https://apps.microsoft.com/detail/9n9698qbxttg" target="_blank" rel="noopener">&#9733; Rate</a></p></div></aside>` +
     `<main class="ap-main"><div id="ap-page"></div></main><div id="ap-toasts" aria-live="polite"></div></div>`;
 }
 
