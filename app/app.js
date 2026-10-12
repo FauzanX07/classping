@@ -5,7 +5,7 @@
 // The ?v= below goes up with the one on app.js in index.html, so a new deploy never mixes old and new files.
 import * as auth from "./auth.js?v=16";
 import * as api from "./api.js?v=16";
-import * as store from "./store.js?v=16";
+import * as store from "./store.js?v=17";
 import { classify } from "./sort.js?v=16";
 import { sample } from "./demo.js?v=16";
 import { SYNC_EVERY_MS, FIRST_READ_MOST, REFRESH_READ_MOST, SUPPORT_EMAIL, TERMS_VERSION } from "./config.js?v=16";
@@ -127,6 +127,22 @@ function list(view, { ignore = "" } = {}) {
   }
   if (view !== "all") rows = rows.filter((p) => sectionOf(p) === view);
   return rows.sort((a, b) => Date.parse(when(b)) - Date.parse(when(a)));
+}
+
+// -- waiting work: to-dos that have sat undone for a few days ----------------------------------
+// Mentioned quietly under the sections (never a pop-up). "Later" hides it for a day; Settings picks
+// how many days, or turns it off.
+const REMIND_CHOICES = [[0, "Off"], [1, "1 day"], [2, "2 days"], [3, "3 days"], [5, "5 days"], [7, "A week"]];
+
+function waitingPosts() {
+  const prefs = store.prefs();
+  const asked = Number(prefs.remindDays);
+  const days = Number.isFinite(asked) ? asked : 2;
+  if (!days || (Number(prefs.remindUntil) || 0) > Date.now()) return [];
+  const limit = Date.now() - days * 86400000;
+  return S.posts
+    .filter((p) => !isDone(p) && sectionOf(p) === "Homework" && Date.parse(when(p)) <= limit)
+    .sort((a, b) => Date.parse(when(a)) - Date.parse(when(b)));
 }
 
 // -- old work: tick off, or bring back, what was posted a while ago ----------------------------
@@ -567,6 +583,12 @@ function paintNav() {
   const count = (view) => list(view).length;
   let html = navItem("todo", "To-Do", count("todo")) + navItem("all", "All posts", count("all"));
   html += `<div class="ap-heading">Sections</div>` + SECTIONS.map((s) => navItem(s, s, count(s))).join("");
+  const waiting = S.demo ? [] : waitingPosts();
+  if (waiting.length) {
+    const age = Math.max(0, Math.floor((Date.now() - Date.parse(when(waiting[0]))) / 86400000));
+    html += `<div class="ap-wait"><button type="button" class="ap-waitlink" data-view="todo">${waiting.length} to-do${waiting.length === 1 ? "" : "s"} waiting, ` +
+      `the oldest ${age} day${age === 1 ? "" : "s"}</button><button type="button" class="ap-later" data-later="1">Later</button></div>`;
+  }
   if (S.courses.length) {
     html += `<div class="ap-heading">Classes</div>`;
     html += `<button class="ap-nav" data-course="any"${S.course === "any" ? ' aria-current="true"' : ""}><span>All classes</span></button>`;
@@ -787,6 +809,10 @@ function settings() {
     `<label class="ap-row"><div><b>Notify me of new posts</b><small>${perm === "denied" ? "Your browser has blocked notifications for this site." : perm === "unsupported" ? "This browser cannot show notifications." : "Asks your browser's permission first."}</small></div>` +
     `<input type="checkbox" id="ap-notify" role="switch"${prefs.notify && perm === "granted" ? " checked" : ""}${perm === "denied" || perm === "unsupported" ? " disabled" : ""}></label>` +
     `<p class="small">For alerts all day, even with the browser closed, use <a href="../download.html">the Windows app</a>.</p></section>` +
+    `<section class="ap-set"><h2>Reminders</h2><p>When something on your To-Do list has sat undone this long, the sidebar mentions it under the sections. Press Later there to hide it for a day.</p>` +
+    `<label class="ap-row"><div><b>Remind me about waiting work</b><small>Counted from when it was posted.</small></div>` +
+    `<select class="ap-pick" id="ap-remind" aria-label="Remind me about waiting work after">` +
+    REMIND_CHOICES.map(([n, name]) => `<option value="${n}"${Number(prefs.remindDays) === n ? " selected" : ""}>${name}</option>`).join("") + `</select></label></section>` +
     `<section class="ap-set"><h2>Old work</h2><p>Tick off everything that was posted a while ago so your list does not pile up. New posts are never touched, and nothing is deleted.</p>` +
     `<div class="ap-row"><div><b>Tick off old work</b><small>Marks posts as done, in any section.</small></div><div class="ap-rowbtns">` +
     `${oldSelect("ap-bulk-tick", false, S.pick.tick, "How much old work to tick off")}<button class="ap-btn strong" data-act="bulk-tick">Tick off</button></div></div>` +
@@ -916,6 +942,7 @@ function wire() {
   $("#ap-root").addEventListener("click", (event) => {
     const t = event.target.closest("button, a, label");
     if (!t) return;
+    if (t.dataset.later) { store.savePrefs({ remindUntil: Date.now() + 86400000 }); paintNav(); return; }
     if (t.dataset.view) { S.view = t.dataset.view; S.limit = PAGE; S.drawer = false; S.enter = true; paintAll(); window.scrollTo(0, 0); return; }
     if (t.dataset.course) { S.course = t.dataset.course; S.limit = PAGE; S.drawer = false; S.enter = true; if (S.view === "settings") S.view = "todo"; paintAll(); window.scrollTo(0, 0); return; }
     if (t.dataset.done) { toggleDone(t.dataset.done, t); return; }
@@ -954,6 +981,7 @@ function wire() {
     if (t.dataset && t.dataset.move) { mark("moved", t.dataset.move, t.value); persist(); paintAll(); return; }
     if (t.id === "ap-range") { S.range = t.value; S.limit = PAGE; paintAll(); return; }
     if (t.id === "ap-old-start") { S.pick.start = t.value; return; }
+    if (t.id === "ap-remind") { store.savePrefs({ remindDays: Number(t.value), remindUntil: 0 }); paintNav(); return; }
     if (t.id === "ap-bulk-tick") { S.pick.tick = t.value; return; }
     if (t.id === "ap-bulk-back") { S.pick.back = t.value; return; }
     if (t.id === "ap-agree") { S.error = ""; store.savePrefs({ terms: t.checked ? TERMS_VERSION : "" }); paintAll(); return; }

@@ -130,7 +130,7 @@ export async function wipe() {
 // Small preferences live in localStorage; every access is guarded because it
 // can be blocked (private windows, strict settings).
 const PREFS = "classping-web-prefs";
-const DEFAULT_PREFS = { notify: false, range: "any", showDone: false, email: "", terms: "" };
+const DEFAULT_PREFS = { notify: false, range: "any", showDone: false, email: "", terms: "", remindDays: 2, remindUntil: 0 };
 
 // When the browser will not keep anything (a private window, strict settings), the choices made in
 // this tab are held in memory instead, so the page still works until it is closed.
