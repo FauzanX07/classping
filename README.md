@@ -25,6 +25,8 @@ when a teacher posts something new.
 
 The Class Ping app itself is not in this repository.
 
+Developed by Fauzan Khan.
+
 ## Contact
 
 Questions, bug reports or privacy requests: classpingsupport@gmail.com
