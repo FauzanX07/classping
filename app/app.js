@@ -3,14 +3,16 @@
 // requests that leave it go to Google.
 
 // The ?v= below goes up with the one on app.js in index.html, so a new deploy never mixes old and new files.
-import * as auth from "./auth.js?v=16";
-import * as api from "./api.js?v=16";
+import * as auth from "./auth.js?v=17";
+import * as api from "./api.js?v=17";
 import * as store from "./store.js?v=17";
-import { classify } from "./sort.js?v=16";
+import { classify, SORT_VERSION } from "./sort.js?v=17";
 import { sample } from "./demo.js?v=16";
 import { SYNC_EVERY_MS, FIRST_READ_MOST, REFRESH_READ_MOST, SUPPORT_EMAIL, TERMS_VERSION } from "./config.js?v=16";
 
 const EMAIL_SCOPE = "https://www.googleapis.com/auth/userinfo.email";
+const ROSTERS_SCOPE = "https://www.googleapis.com/auth/classroom.rosters.readonly";
+function freshSync() { return { classes: {}, pruned: {}, rosters: undefined, sorter: 0 }; }
 
 const SECTIONS = ["Homework", "Classwork", "Important", "Extra", "Notes"];
 const KIND_LABEL = { announcement: "Announcement", assignment: "Assignment", material: "Material", question: "Question" };
@@ -24,6 +26,7 @@ const SITE_PREFS = "classping-site-settings";      // the same key the rest of t
 const S = {
   view: "todo", course: "any", range: "any", showDone: false, q: "", limit: PAGE,
   posts: [], courses: [], names: {}, marks: { done: {}, moved: {}, seen: {}, firstSync: false },
+  sync: freshSync(),                                          // per class: Google's newest change, and the last prune
   email: "", demo: false, lastSync: "", syncing: false, needSignIn: false, error: "", status: "",
   seenAtLoad: new Set(), drawer: false, expanded: new Set(), connecting: false, reconsent: false,
   gen: 0,                                                     // bumps when a different account starts over
@@ -51,14 +54,16 @@ function clock(d) {
 }
 
 // "Today 4:30 PM", "Yesterday", "Tomorrow 11:59 PM", "12 Sep 2026"
-function friendly(iso) {
+// A due date always shows its time: one with no time is kept as 11:59 PM (api.js), so 12:00 AM is a real
+// midnight deadline, and "Due tomorrow" with no time read as a day later than it was.
+function friendly(iso, alwaysClock = false) {
   if (!iso) return "";
   const d = new Date(iso);
   if (isNaN(d)) return "";
   const today = new Date();
   const step = (n) => { const x = new Date(today); x.setDate(x.getDate() + n); return dayKey(x); };
   const key = dayKey(d);
-  const hasClock = !(d.getHours() === 0 && d.getMinutes() === 0);
+  const hasClock = alwaysClock || !(d.getHours() === 0 && d.getMinutes() === 0);
   const when = hasClock ? " " + clock(d) : "";
   if (key === dayKey(today)) return "Today" + when;
   if (key === step(-1)) return "Yesterday" + when;
@@ -70,7 +75,7 @@ function dueText(iso) {
   const d = new Date(iso);
   if (isNaN(d)) return { text: "", late: false };
   const late = d.getTime() < Date.now();
-  return { text: (late ? "Was due " : "Due ") + friendly(iso).replace(/^Today/, "today").replace(/^Tomorrow/, "tomorrow").replace(/^Yesterday/, "yesterday"), late };
+  return { text: (late ? "Was due " : "Due ") + friendly(iso, true).replace(/^Today/, "today").replace(/^Tomorrow/, "tomorrow").replace(/^Yesterday/, "yesterday"), late };
 }
 
 function inRange(post, range) {
@@ -224,7 +229,7 @@ async function doSave() {
   const mine = ops;
   ops = freshOps();
   const result = await store.save(
-    { posts: S.posts, courses: S.courses, names: S.names, lastSync: S.lastSync },
+    { posts: S.posts, courses: S.courses, names: S.names, lastSync: S.lastSync, sync: S.sync },
     (stored) => withOps(stored, mine),
     () => gen === S.gen);
   if (gen !== S.gen) return;                  // erased or switched meanwhile: nothing here belongs to this account now
@@ -260,7 +265,7 @@ function otherTab(kind) {
 async function refresh() {
   if (S.demo) return;
   const gen = S.gen;
-  const data = await store.readAll(["posts", "courses", "names", "marks", "lastSync"]);
+  const data = await store.readAll(["posts", "courses", "names", "marks", "lastSync", "sync"]);
   if (gen !== S.gen || S.demo) return;
   const seeing = JSON.stringify([S.marks.done, S.marks.moved, S.marks.askedOld, S.marks.firstSync, S.lastSync, S.posts.length]);
   S.marks = withOps({ ...noMarks(), ...(data.marks || {}) }, ops);
@@ -270,6 +275,7 @@ async function refresh() {
     S.courses = data.courses || [];
     S.names = data.names || {};
     S.lastSync = data.lastSync;
+    S.sync = { ...freshSync(), ...(data.sync || {}) };
     if (S.course !== "any" && !S.courses.some((c) => c.id === S.course)) S.course = "any";
   }
   const email = store.prefs().email;
@@ -283,7 +289,7 @@ function erasedElsewhere() {
   ops = freshOps();
   clearTimeout(saving); saving = 0;
   auth.forgetToken();
-  Object.assign(S, { posts: [], courses: [], names: {}, lastSync: "", email: store.prefs().email || "", needSignIn: false, error: "", bulkNote: "",
+  Object.assign(S, { posts: [], courses: [], names: {}, lastSync: "", sync: freshSync(), email: store.prefs().email || "", needSignIn: false, error: "", bulkNote: "",
     syncing: false, connecting: false, marks: noMarks(), view: "todo", q: "", course: "any", range: "any", limit: PAGE,
     seenAtLoad: new Set(), expanded: new Set(), pick: { start: "", tick: "", back: "" } });
   paintAll();
@@ -329,7 +335,7 @@ async function sync({ quiet = false } = {}) {
   paintStatus(quiet ? "" : "Checking Classroom...");
   paintCheck();
   if ($("#ap-root").classList.contains("welcome-mode")) paintAll();   // say so, instead of sitting still
-  const first = !S.lastSync;
+  const first = !S.marks.firstSync;
   let token = "";
   try {
     token = auth.token();
@@ -338,20 +344,36 @@ async function sync({ quiet = false } = {}) {
     const knownClasses = new Set(S.courses.map((c) => c.id));
     S.courses = mine;
     if (S.course !== "any" && !mine.some((c) => c.id === S.course)) S.course = "any";
-    const since = first ? "" : new Date(Date.parse(S.lastSync) - 3600 * 1000).toISOString();
+    // Teacher names need their own permission box. Without it nobody is looked up (and no blank
+    // name is remembered for good); when it is ticked later, every class is read again for the names.
+    const rosters = auth.grantedScopes().includes(ROSTERS_SCOPE);
+    if (rosters && S.sync.rosters !== true) {
+      for (const [id, person] of Object.entries(S.names)) if (!(typeof person === "string" ? person : person && person.name)) delete S.names[id];
+      if (S.sync.rosters === false || S.posts.some((p) => !p.author)) S.sync.classes = {};
+    }
+    S.sync.rosters = rosters;
     const byId = new Map(S.posts.map((p) => [p.id, p]));
     const fresh = [];
     let finished = 0;
     paintStatus(`Reading ${mine.length} class${mine.length === 1 ? "" : "es"}...`);
     // Every class is read at the same time; the first read of a big account takes seconds, not a minute.
     // One class that cannot be read must not stop the rest. A class you have just joined is read in full.
+    // Each class is read from the newest change Google itself reported for it last time, less an hour:
+    // the device's clock was used before, and on a PC whose clock ran fast nothing new was ever seen again.
     const failed = [];
+    const quiet = new Set();                    // classes read for the first time: their posts are not "new"
     const reads = await Promise.all(mine.map(async (course) => {
-      const everything = first || !knownClasses.has(course.id);
+      const newest = S.sync.classes[course.id];
+      const everything = first || !knownClasses.has(course.id) || newest === undefined;
+      if (first || !knownClasses.has(course.id)) quiet.add(course.id);
+      const since = !everything && newest ? new Date(Date.parse(newest) - 3600 * 1000).toISOString() : "";
       try {
-        const found = await api.readCourse(course, token, S.names, { since: everything ? "" : since, most: everything ? FIRST_READ_MOST : REFRESH_READ_MOST });
+        const found = await api.readCourse(course, token, S.names, { since, most: everything ? FIRST_READ_MOST : REFRESH_READ_MOST, names: rosters });
         finished += 1;
         paintStatus(`Read ${finished} of ${mine.length} class${mine.length === 1 ? "" : "es"}`);
+        let latest = newest || "";
+        for (const p of found) if (p.updatedAt && (!latest || Date.parse(p.updatedAt) > Date.parse(latest))) latest = p.updatedAt;
+        S.sync.classes[course.id] = latest;
         return found;
       } catch (error) {
         if (error && error.status === 401) throw error;
@@ -364,17 +386,39 @@ async function sync({ quiet = false } = {}) {
     for (const found of reads) {
       for (const post of found) {
         sortPost(post);
-        if (!byId.has(post.id)) fresh.push(post);
+        if (!byId.has(post.id) && !quiet.has(post.courseId)) fresh.push(post);
+        else if (!byId.has(post.id)) mark("seen", post.id, 1);
         byId.set(post.id, post);
       }
     }
     // A class you have left, or that was archived, goes too.
     if (mine.length) for (const [id, p] of byId) if (!mine.some((c) => c.id === p.courseId)) byId.delete(id);
+    // And, once a day, a post the teacher deleted: every id of the class is asked for, and what
+    // Google no longer has is dropped. Only from a class whose every list answered in full.
+    const due = mine.filter((c) => !failed.some((f) => f.course.id === c.id)
+      && Date.now() - (Number(S.sync.pruned[c.id]) || 0) > 86400000);
+    const lists = await Promise.all(due.map((c) => api.allIds(c, token).catch(() => null)));
+    if (gen !== S.gen) return;
+    due.forEach((c, i) => {
+      const ids = lists[i];
+      if (!ids) return;
+      for (const [id, p] of byId) if (p.courseId === c.id && !ids.has(id)) byId.delete(id);
+      S.sync.pruned[c.id] = Date.now();
+    });
+    // A teacher's name that only came with the permission: posts saved without it get it now.
+    for (const p of byId.values()) {
+      const person = p.authorId ? S.names[p.authorId] : null;
+      const name = person && (typeof person === "string" ? person : person.name);
+      if (!p.author && name) {
+        p.author = name;
+        if (p.kind === "announcement" && p.title === "Announcement") p.title = `Post by ${name}`;
+        sortPost(p);
+      }
+    }
     S.posts = [...byId.values()];
-    if (!failed.length) {
-      S.lastSync = new Date().toISOString();
-    } else {
-      // Not every class was read: keep the old time, so the next check reads from there again.
+    S.lastSync = new Date().toISOString();       // "checked at", for you; the reading itself goes by Google's times
+    if (failed.length) {
+      // That class is read from where it was again next time.
       S.error = `Could not read ${failed.map((f) => shortClass(f.course.name)).join(", ")} just now. It will be tried again.`;
     }
     S.needSignIn = false;
@@ -428,7 +472,7 @@ async function startOver() {
   ops = freshOps();
   clearTimeout(saving); saving = 0;
   await store.wipe();
-  Object.assign(S, { posts: [], courses: [], names: {}, lastSync: "", needSignIn: false, error: "", bulkNote: "",
+  Object.assign(S, { posts: [], courses: [], names: {}, lastSync: "", sync: freshSync(), needSignIn: false, error: "", bulkNote: "",
     marks: { done: {}, moved: {}, seen: {}, firstSync: false }, view: "todo", q: "", course: "any", range: "any",
     limit: PAGE, seenAtLoad: new Set(), expanded: new Set(), pick: { start: "", tick: "", back: "" } });
 }
@@ -467,7 +511,7 @@ async function connect(prompt = "") {
         : "Class Ping could not read your Google email address. Check your connection and press Sign in again.";
       return;
     }
-    if (S.demo) { S.demo = false; S.posts = []; S.courses = []; S.lastSync = ""; S.marks = noMarks(); ops = freshOps(); }
+    if (S.demo) { S.demo = false; S.posts = []; S.courses = []; S.lastSync = ""; S.sync = freshSync(); S.marks = noMarks(); ops = freshOps(); }
     if (S.email && who.toLowerCase() !== S.email.toLowerCase()) {
       // A different account: the old one's classes, posts and ticks must not stay.
       await startOver();
@@ -489,8 +533,10 @@ async function connect(prompt = "") {
 let renewing = false;
 // A click is the one moment the browser lets Google's window open on its own,
 // so a token that is running low is renewed then, quietly.
-function renewOnClick() {
+function renewOnClick(event) {
   if (renewing || S.demo || !auth.configured() || !S.posts.length) return;
+  // A sign-in button asks Google itself: a second request at the same moment raced it.
+  if (event && event.target && event.target.closest && event.target.closest('[data-act="signin"], [data-act="switch"], [data-act="other"]')) return;
   if (auth.signedIn() && auth.minutesLeft() > 8) return;
   if (!S.email && !auth.signedIn()) return;
   renewing = true;
@@ -510,14 +556,22 @@ function renewOnClick() {
 
 async function signOutAndErase() {
   if (!confirm("Sign out, give Google's permission back, and erase everything Class Ping saved in this browser?")) return;
+  // Google's permission is given back with a live token. A new tab, or one an hour old, has none:
+  // one is asked for quietly first (this click lets Google's window open), or the page says how instead.
+  let handBack = auth.signedIn();
+  if (!handBack && S.email && auth.configured() && !S.demo) {
+    try { await auth.signIn({ prompt: "none", hint: S.email }); handBack = auth.signedIn(); } catch (e) { handBack = false; }
+  }
   S.gen += 1;                                  // anything still reading or signing in is now ignored
   ops = freshOps();
   clearTimeout(saving); saving = 0;
+  const wasDemo = S.demo || !S.email;
   const gone = auth.signOut();                 // Google can be slow to answer; the page is cleared meanwhile
   store.forgetPrefs();
-  Object.assign(S, { posts: [], courses: [], names: {}, lastSync: "", email: "", needSignIn: false, demo: false, error: "", bulkNote: "", status: "",
+  Object.assign(S, { posts: [], courses: [], names: {}, lastSync: "", sync: freshSync(), email: "", needSignIn: false, demo: false, error: "", bulkNote: "", status: "",
     syncing: false, connecting: false, marks: noMarks(), view: "todo", q: "", course: "any", range: "any", limit: PAGE, showDone: false,
     seenAtLoad: new Set(), expanded: new Set(), pick: { start: "", tick: "", back: "" }, drawer: false });
+  if (!handBack && !wasDemo) S.error = "Signed out and erased. To take back Google's permission too, remove Class Ping at myaccount.google.com/permissions.";
   paintAll();
   await store.wipe();
   await Promise.race([gone, new Promise((resolve) => setTimeout(resolve, 6000))]);
@@ -655,7 +709,7 @@ function initials(name) {
 
 function avatar(post) {
   const picture = safeUrl(post.authorPhoto)
-    ? `<img src="${esc(safeUrl(post.authorPhoto))}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : "";
+    ? `<img src="${esc(safeUrl(post.authorPhoto))}" alt="" loading="lazy" referrerpolicy="no-referrer">` : "";
   return `<span class="ap-ava" style="background:${colourFor(post.author)}" aria-hidden="true">${esc(initials(post.author))}${picture}</span>`;
 }
 
@@ -758,7 +812,10 @@ function paintBanner() {
       `<button class="ap-btn strong" data-act="old-tick">Tick off</button><button class="ap-btn" data-act="old-keep">Keep all</button></div></div>`;
   }
   if (S.error) html += `<div class="ap-note-bar warn" role="alert"><span>${esc(S.error)}</span></div>`;
+  // Unchanged, it is left alone: rebuilt, a screen reader read the same warning out again on every tick.
+  if (holder.dataset.shown === html) return;
   holder.innerHTML = html;
+  holder.dataset.shown = html;
 }
 
 function googleButton(label) {
@@ -937,7 +994,14 @@ function focusNear(id) {
 }
 
 function wire() {
-  document.addEventListener("pointerdown", renewOnClick, true);
+  // A click (or Enter on a button) counts as you asking, so the browser lets Google's window open;
+  // a touch's pointerdown does not, and the keyboard never sent one.
+  document.addEventListener("click", renewOnClick, true);
+  // A teacher's picture that will not load leaves the initials beneath it (no inline handler: the CSP forbids it).
+  document.addEventListener("error", (event) => {
+    const t = event.target;
+    if (t && t.tagName === "IMG" && t.closest(".ap-ava")) t.remove();
+  }, true);
 
   $("#ap-root").addEventListener("click", (event) => {
     const t = event.target.closest("button, a, label");
@@ -946,8 +1010,17 @@ function wire() {
     if (t.dataset.view) { S.view = t.dataset.view; S.limit = PAGE; S.drawer = false; S.enter = true; paintAll(); window.scrollTo(0, 0); return; }
     if (t.dataset.course) { S.course = t.dataset.course; S.limit = PAGE; S.drawer = false; S.enter = true; if (S.view === "settings") S.view = "todo"; paintAll(); window.scrollTo(0, 0); return; }
     if (t.dataset.done) { toggleDone(t.dataset.done, t); return; }
-    if (t.dataset.more) { const id = t.dataset.more; if (S.expanded.has(id)) S.expanded.delete(id); else S.expanded.add(id); paintList(); return; }
-    if (t.id === "ap-more-posts") { S.limit += PAGE; paintList(); return; }
+    if (t.dataset.more) { const id = t.dataset.more; if (S.expanded.has(id)) S.expanded.delete(id); else S.expanded.add(id); paintAll(); return; }
+    if (t.id === "ap-more-posts") {
+      const from = S.limit;
+      S.limit += PAGE;
+      paintList();
+      // The button is gone: the keyboard goes on to the first of the posts it brought.
+      const next = document.querySelectorAll("#ap-list .ap-card")[from];
+      const target = next && next.querySelector("button, a[href]");
+      if (target) target.focus({ preventScroll: true });
+      return;
+    }
     if (t.id === "ap-check") { sync(); return; }
     if (t.id === "ap-settings") { S.view = S.view === "settings" ? "todo" : "settings"; S.bulkNote = ""; S.drawer = false; paintAll(); window.scrollTo(0, 0); return; }
     if (t.id === "ap-menu") { if (S.drawer) closeDrawer(true); else openDrawer(); return; }
@@ -1080,7 +1153,7 @@ async function boot() {
   S.showDone = prefs.showDone;
   S.email = prefs.email || "";
   // What is saved is read first, so the sidebar is not drawn for a moment and then taken away on the welcome screen.
-  const data = await store.readAll(["posts", "courses", "names", "marks", "lastSync"]);
+  const data = await store.readAll(["posts", "courses", "names", "marks", "lastSync", "sync"]);
   document.body.innerHTML = chrome();
   wire();
   S.posts = (data.posts || []).map((p) => (p.section ? p : sortPost(p)));
@@ -1088,6 +1161,13 @@ async function boot() {
   S.names = data.names || {};
   S.marks = { ...noMarks(), ...(data.marks || {}) };
   S.lastSync = data.lastSync || "";
+  S.sync = { ...freshSync(), ...(data.sync || {}) };
+  // Better sorting reaches the posts already saved too, not only new ones (a post you moved stays moved).
+  if (S.sync.sorter !== SORT_VERSION && S.posts.length) {
+    S.posts.forEach(sortPost);
+    S.sync.sorter = SORT_VERSION;
+    persist();
+  }
   S.seenAtLoad = new Set(Object.keys(S.marks.seen));
   auth.restore();
   if (/[?#&]demo\b/.test(location.search + location.hash)) startDemo();

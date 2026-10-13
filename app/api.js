@@ -41,7 +41,7 @@ async function pages(path, key, params, token, { stop = null, most = 300 } = {})
   const found = [];
   let pageToken = "";
   for (;;) {
-    const page = await get(path, { ...params, pageSize: PAGE_SIZE, pageToken }, token);
+    const page = await get(path, { pageSize: PAGE_SIZE, ...params, pageToken }, token);
     for (const item of page[key] || []) {
       if (stop && stop(item)) return found;
       found.push(item);
@@ -148,7 +148,7 @@ function kindOf(item, list) {
 
 export async function toPost(item, list, course, token, names) {
   const kind = kindOf(item, list);
-  const person = await profile(String(item.creatorUserId || ""), token, names);
+  const person = names ? await profile(String(item.creatorUserId || ""), token, names) : { name: "", photo: "" };
   const who = person.name;
   const body = String((kind === "announcement" ? item.text : item.description) || "").trim();
   // Classroom labels an announcement "Post by <teacher>"; the desktop app stores the same label.
@@ -164,6 +164,7 @@ export async function toPost(item, list, course, token, names) {
     title,
     body,
     author: who,
+    authorId: String(item.creatorUserId || ""),       // so a name that comes later can still be filled in
     authorPhoto: person.photo,
     link: safe(item.alternateLink),
     postedAt: posted ? posted.toISOString() : "",
@@ -176,7 +177,7 @@ export async function toPost(item, list, course, token, names) {
 const LISTS = [["announcements", "announcements"], ["courseWork", "courseWork"], ["courseWorkMaterials", "courseWorkMaterial"]];
 
 // Everything in one class since `since` (an ISO time), or the newest `most` of each list.
-export async function readCourse(course, token, names, { since = "", most = 300 } = {}) {
+export async function readCourse(course, token, names, { since = "", most = 300, names: lookUp = true } = {}) {
   const cutoff = since ? new Date(since) : null;
   const older = (item) => {
     const changed = when(item.updateTime || item.creationTime);
@@ -192,10 +193,23 @@ export async function readCourse(course, token, names, { since = "", most = 300 
     }
   }));
   // Each teacher is looked up once, all at the same time, before the posts are built.
+  // Without the "teacher names" permission nobody is looked up: each answer would be a refusal.
   const people = new Set();
   for (const [, items] of lists) for (const item of items) people.add(String(item.creatorUserId || ""));
-  await Promise.all([...people].map((id) => profile(id, token, names)));
+  if (lookUp) await Promise.all([...people].map((id) => profile(id, token, names)));
   const posts = [];
-  for (const [list, items] of lists) for (const item of items) posts.push(await toPost(item, list, course, token, names));
+  for (const [list, items] of lists) for (const item of items) posts.push(await toPost(item, list, course, token, lookUp ? names : null));
   return posts;
+}
+
+// Every post id the class has now, in all three lists -- or null if any list could not be read in
+// full, so that nothing is ever dropped on a partial answer.
+export async function allIds(course, token) {
+  const ids = new Set();
+  for (const [list, key] of LISTS) {
+    const items = await pages(`courses/${course.id}/${list}`, key,
+      { pageSize: 100, fields: `${key}(id),nextPageToken` }, token, { most: 20000 });
+    for (const item of items) ids.add(String(item.id));
+  }
+  return ids;
 }

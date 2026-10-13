@@ -72,8 +72,8 @@ export function words(list) {
 function handle(response) {
   const job = waiting;
   waiting = null;
-  if (!job) return;
   if (!response || response.error) {
+    if (!job) return;
     const error = new Error((response && (response.error_description || response.error)) || "Sign-in did not finish.");
     error.code = (response && response.error) || "failed";
     job.reject(error);
@@ -85,7 +85,8 @@ function handle(response) {
     scopes: names(response.scope),
   };
   remember();
-  job.resolve(current);
+  // Kept even when nobody is waiting any more (two requests crossed): a good token is a good token.
+  if (job) job.resolve(current);
 }
 
 function fail(error) {

@@ -19,6 +19,8 @@
 //    as \s, so pySplit()/pyStrip() do the same here.
 
 export const SECTIONS = ["Homework", "Classwork", "Important", "Notes", "Extra"];
+// Goes up whenever the rules below change, so the posts already saved are sorted again too.
+export const SORT_VERSION = 2;
 // When two sections score the same, the one that asks more of the student wins.
 const TIE_ORDER = { Homework: 0, Important: 1, Classwork: 2, Notes: 3, Extra: 4 };
 
