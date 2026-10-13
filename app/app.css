@@ -131,6 +131,8 @@ a.ap-btn:hover, a.ap-nav:hover, a.ap-brand:hover, a.ap-file:hover, a.ap-back:hov
 .ap-meta > div > span { position: relative; display: inline-flex; align-items: center; gap: 6px; padding-left: 16px; }
 .ap-meta > div > span::before { content: "\B7"; position: absolute; left: 5px; color: var(--faint); }
 .ap-meta b { color: var(--text); font-weight: 600; }
+/* "Deleted by teacher": a post Classroom no longer has, in the late colour (6:1 or more on every look) */
+.ap-meta .ap-gone { color: var(--warn); font-weight: 600; }
 .ap-due { margin: 4px 0 0; color: var(--due); font-weight: 600; font-size: 13.5px; }
 .ap-due.late { color: var(--warn); }
 .ap-body { margin: 8px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14.5px; line-height: 1.55; }
@@ -194,13 +196,13 @@ a.ap-file:hover { border-color: var(--edge); color: var(--text); }
 .ap-linkrow a:hover, .ap-linkrow a:focus-visible { text-decoration: underline; }
 .ap-wcard .ap-linkrow { margin-top: 4px; }
 .ap-linkrow i { font-style: normal; color: var(--faint); }
-/* the notify checkbox is the same switch as "Show done" */
-#ap-notify { appearance: none; -webkit-appearance: none; flex: none; position: relative; width: 34px; height: 20px; margin: 0; border-radius: 10px; background: var(--card); border: 1px solid var(--edge); cursor: pointer; }
-#ap-notify::after { content: ""; position: absolute; top: 3px; left: 3px; width: 12px; height: 12px; border-radius: 50%; background: var(--muted); transition: transform 0.15s ease; }
-#ap-notify:checked { background: var(--accent); border-color: var(--accent); }
-#ap-notify:checked::after { transform: translateX(14px); background: var(--accent-text); }
+/* the notify and remove-deleted checkboxes are the same switch as "Show done" */
+#ap-notify, #ap-remove-deleted { appearance: none; -webkit-appearance: none; flex: none; position: relative; width: 34px; height: 20px; margin: 0; border-radius: 10px; background: var(--card); border: 1px solid var(--edge); cursor: pointer; }
+#ap-notify::after, #ap-remove-deleted::after { content: ""; position: absolute; top: 3px; left: 3px; width: 12px; height: 12px; border-radius: 50%; background: var(--muted); transition: transform 0.15s ease; }
+#ap-notify:checked, #ap-remove-deleted:checked { background: var(--accent); border-color: var(--accent); }
+#ap-notify:checked::after, #ap-remove-deleted:checked::after { transform: translateX(14px); background: var(--accent-text); }
 #ap-notify:disabled { opacity: 0.5; cursor: default; }
-label.ap-row:has(#ap-notify:not(:disabled)) { cursor: pointer; }
+label.ap-row:has(#ap-notify:not(:disabled)), label.ap-row:has(#ap-remove-deleted) { cursor: pointer; }
 .ap-themes { display: grid; grid-template-columns: repeat(auto-fill, minmax(138px, 1fr)); gap: 8px; }
 .ap-choice { position: relative; display: block; padding: 8px; border: 2px solid var(--divider); border-radius: var(--r); cursor: pointer; }
 .ap-choice:hover { border-color: var(--edge); }

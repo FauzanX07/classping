@@ -50,6 +50,10 @@ export function sample() {
       post(10, science, "assignment", "Lab report: acids and bases",
         "Write up the experiment from Tuesday: aim, method, results and conclusion.",
         "Ms. Rahman", at(240), in_(-20)),
+      // One the teacher has since deleted in Classroom, so its "Deleted by teacher" mark can be seen.
+      { ...post(11, english, "assignment", "Poem summary",
+        "Write a short summary of the poem we read in class, in your own words.",
+        "Mr. Haddad", at(60), in_(30)), deletedAt: at(12) },
     ],
   };
 }

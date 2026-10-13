@@ -5,9 +5,9 @@
 // The ?v= below goes up with the one on app.js in index.html, so a new deploy never mixes old and new files.
 import * as auth from "./auth.js?v=17";
 import * as api from "./api.js?v=17";
-import * as store from "./store.js?v=17";
+import * as store from "./store.js?v=18";
 import { classify, SORT_VERSION } from "./sort.js?v=17";
-import { sample } from "./demo.js?v=16";
+import { sample } from "./demo.js?v=17";
 import { SYNC_EVERY_MS, FIRST_READ_MOST, REFRESH_READ_MOST, SUPPORT_EMAIL, TERMS_VERSION } from "./config.js?v=16";
 
 const EMAIL_SCOPE = "https://www.googleapis.com/auth/userinfo.email";
@@ -31,6 +31,7 @@ const S = {
   seenAtLoad: new Set(), drawer: false, expanded: new Set(), connecting: false, reconsent: false,
   gen: 0,                                                     // bumps when a different account starts over
   pick: { start: "", tick: "", back: "" }, bulkNote: "",     // the old-work choices and what the last one did
+  arm: "",                                                    // the deleted post whose Delete button is asking "Sure?"
 };
 
 const $ = (selector, root = document) => root.querySelector(selector);
@@ -254,6 +255,18 @@ function saveNow() {
   save();
 }
 
+// Takes posts off Class Ping's list in this browser, with their ticks and moves. Classroom itself is
+// never changed: Class Ping only reads it. Says how many went.
+function forget(ids) {
+  const gone = new Set(ids);
+  const before = S.posts.length;
+  S.posts = S.posts.filter((p) => !gone.has(p.id));
+  for (const id of gone) for (const kind of ["done", "moved", "seen"]) mark(kind, id, null);
+  if (gone.has(S.arm)) S.arm = "";
+  if (S.posts.length !== before) persist();
+  return before - S.posts.length;
+}
+
 // Another tab saved or erased something: read it again.
 let looking = 0;
 function otherTab(kind) {
@@ -277,6 +290,10 @@ async function refresh() {
     S.lastSync = data.lastSync;
     S.sync = { ...freshSync(), ...(data.sync || {}) };
     if (S.course !== "any" && !S.courses.some((c) => c.id === S.course)) S.course = "any";
+  } else if (data.posts) {
+    // A deleted post removed in another tab goes here too, or the next save here would bring it back.
+    const kept = new Set(data.posts.map((p) => p.id));
+    S.posts = S.posts.filter((p) => !p.deletedAt || kept.has(p.id));
   }
   const email = store.prefs().email;
   if (email) S.email = email;
@@ -394,7 +411,8 @@ async function sync({ quiet = false } = {}) {
     // A class you have left, or that was archived, goes too.
     if (mine.length) for (const [id, p] of byId) if (!mine.some((c) => c.id === p.courseId)) byId.delete(id);
     // And, once a day, a post the teacher deleted: every id of the class is asked for, and what
-    // Google no longer has is dropped. Only from a class whose every list answered in full.
+    // Google no longer has is kept, marked "Deleted by teacher", until you delete it (or Settings
+    // says to remove such posts). Only from a class whose every list answered in full.
     const due = mine.filter((c) => !failed.some((f) => f.course.id === c.id)
       && Date.now() - (Number(S.sync.pruned[c.id]) || 0) > 86400000);
     const lists = await Promise.all(due.map((c) => api.allIds(c, token).catch(() => null)));
@@ -402,9 +420,16 @@ async function sync({ quiet = false } = {}) {
     due.forEach((c, i) => {
       const ids = lists[i];
       if (!ids) return;
-      for (const [id, p] of byId) if (p.courseId === c.id && !ids.has(id)) byId.delete(id);
+      for (const p of byId.values()) {
+        if (p.courseId !== c.id) continue;
+        if (ids.has(p.id)) delete p.deletedAt;                     // Google has it after all
+        else if (!p.deletedAt) p.deletedAt = new Date().toISOString();
+      }
       S.sync.pruned[c.id] = Date.now();
     });
+    // A deleted post you removed while this was reading (here or in another tab) stays removed.
+    const here = new Set(S.posts.map((p) => p.id));
+    for (const [id, p] of byId) if (p.deletedAt && !here.has(id)) byId.delete(id);
     // A teacher's name that only came with the permission: posts saved without it get it now.
     for (const p of byId.values()) {
       const person = p.authorId ? S.names[p.authorId] : null;
@@ -416,6 +441,7 @@ async function sync({ quiet = false } = {}) {
       }
     }
     S.posts = [...byId.values()];
+    if (store.prefs().removeDeleted) forget(S.posts.filter((p) => p.deletedAt).map((p) => p.id));
     S.lastSync = new Date().toISOString();       // "checked at", for you; the reading itself goes by Google's times
     if (failed.length) {
       // That class is read from where it was again next time.
@@ -537,6 +563,9 @@ function renewOnClick(event) {
   if (renewing || S.demo || !auth.configured() || !S.posts.length) return;
   // A sign-in button asks Google itself: a second request at the same moment raced it.
   if (event && event.target && event.target.closest && event.target.closest('[data-act="signin"], [data-act="switch"], [data-act="other"]')) return;
+  // Only a press on a control counts: a click in a post's text, to select it, opened Google's window
+  // and redrew the list, and what was selected was lost.
+  if (event && event.target && event.target.closest && !event.target.closest("button, a, label, select, input")) return;
   if (auth.signedIn() && auth.minutesLeft() > 8) return;
   if (!S.email && !auth.signedIn()) return;
   renewing = true;
@@ -713,6 +742,15 @@ function avatar(post) {
   return `<span class="ap-ava" style="background:${colourFor(post.author)}" aria-hidden="true">${esc(initials(post.author))}${picture}</span>`;
 }
 
+// A post the teacher deleted in Classroom gets a Delete button, which takes it off Class Ping's list
+// (never off Classroom, which Class Ping only reads). It asks once more on the same button: "Sure?".
+function forgetButton(post) {
+  const sure = S.arm === post.id;
+  const title = post.title || "(no title)";
+  return `<button class="ap-btn${sure ? " strong" : ""}" data-forget="${esc(post.id)}" title="Remove from Class Ping. Classroom is not changed." ` +
+    `aria-label="${esc((sure ? "Sure? Press again to remove from Class Ping: " : "Delete from Class Ping: ") + title)}">${sure ? "Sure?" : "Delete"}</button>`;
+}
+
 function card(post, index = 0) {
   const done = isDone(post);
   const title = post.title || "(no title)";
@@ -727,6 +765,7 @@ function card(post, index = 0) {
   return `<article class="ap-card${done ? " done" : ""}${fresh ? " fresh" : ""}${S.popped === post.id ? " popped" : ""}" data-id="${esc(post.id)}"${stagger}>` +
     `<div class="ap-text"><h3>${esc(title)}${fresh ? `<span class="ap-new">New</span>` : ""}</h3>` +
     `<div class="ap-meta"><div><span>${KIND_LABEL[post.kind] || "Post"}</span>` +
+    `${post.deletedAt ? `<span class="ap-gone">Deleted by teacher</span>` : ""}` +
     `${post.author ? `<span>${avatar(post)}<b>${esc(post.author)}</b></span>` : ""}` +
     `<span>${esc(shortClass(post.courseName))}</span><span>${esc(friendly(when(post)))}</span></div></div>` +
     (due ? `<p class="ap-due${due.late ? " late" : ""}">${esc(due.text)}</p>` : "") +
@@ -734,6 +773,7 @@ function card(post, index = 0) {
     (long ? `<button class="ap-more" data-more="${esc(post.id)}" aria-expanded="${open}">${open ? "Show less" : "Show more"}</button>` : "") +
     ((post.files || []).length ? `<div class="ap-files">${post.files.map(fileTile).join("")}</div>` : "") +
     `</div><div class="ap-acts">` +
+    (post.deletedAt ? forgetButton(post) : "") +
     (link ? `<a class="ap-btn" href="${esc(link)}" target="_blank" rel="noopener noreferrer" aria-label="${esc("Open in Classroom: " + title)}">Open</a>` : "") +
     `<label class="ap-move" title="Move to another section"><select data-move="${esc(post.id)}" aria-label="${esc("Section of: " + title)}">${move}</select></label>` +
     `<button class="ap-btn${done ? "" : " strong"}" data-done="${esc(post.id)}" aria-label="${esc((done ? "Undo done: " : "Mark done: ") + title)}">${done ? "Undo" : "Mark done"}</button></div>` +
@@ -778,16 +818,21 @@ function paintList() {
   if (!holder) return;
   const rows = list(S.view);
   holder.classList.toggle("enter", Boolean(S.enter) && !calm());      // cards rise in when a list is opened, not on every repaint
+  let html = "";
   if (!rows.length) {
     const [head, line] = emptyText();
-    holder.innerHTML = `<div class="ap-empty"><h2>${esc(head)}</h2><p>${esc(line)}</p></div>`;
-    S.enter = false; S.popped = "";
-    return;
+    html = `<div class="ap-empty"><h2>${esc(head)}</h2><p>${esc(line)}</p></div>`;
+  } else {
+    const shown = rows.slice(0, S.limit);
+    html = shown.map((p, i) => card(p, i)).join("") +
+      (rows.length > shown.length ? `<button class="ap-btn wide" id="ap-more-posts">Show ${Math.min(PAGE, rows.length - shown.length)} more (${rows.length - shown.length} left)</button>` : "");
   }
-  const shown = rows.slice(0, S.limit);
-  holder.innerHTML = shown.map((p, i) => card(p, i)).join("") +
-    (rows.length > shown.length ? `<button class="ap-btn wide" id="ap-more-posts">Show ${Math.min(PAGE, rows.length - shown.length)} more (${rows.length - shown.length} left)</button>` : "");
   S.enter = false; S.popped = "";
+  // Unchanged, it is left alone: rebuilt, text you were selecting in a post (to copy it) was let go
+  // every time Classroom was checked.
+  if (holder.dataset.shown === html) return;
+  holder.innerHTML = html;
+  holder.dataset.shown = html;
 }
 
 function paintBanner() {
@@ -879,6 +924,8 @@ function settings() {
     `<section class="ap-set"><h2>Appearance</h2><p>Choose a look, or follow your device's light or dark mode.</p><div class="ap-themes">${themes}</div></section>` +
     `<section class="ap-set"><h2>Your data</h2><p>Class Ping keeps your posts, ticks and moves in this browser only. Nothing is sent to us. ` +
     `"Sign out and erase" gives Google's permission back and deletes all of it from this browser.</p>` +
+    `<label class="ap-row"><div><b>Remove posts the teacher deleted</b><small>Off: they stay in your list, marked "Deleted by teacher", until you delete them.</small></div>` +
+    `<input type="checkbox" id="ap-remove-deleted" role="switch"${prefs.removeDeleted ? " checked" : ""}></label>` +
     `<p class="small ap-linkrow"><a href="../privacy.html">Privacy policy</a><i>&middot;</i><a href="../terms.html">Terms</a><i>&middot;</i><a href="mailto:${SUPPORT_EMAIL}">Contact</a></p></section>`;
 }
 
@@ -887,7 +934,7 @@ function focusKey(el) {
   if (!el || el === document.body || !el.closest || !el.closest("#ap-root")) return "";
   if (el.id) return "#" + el.id;
   const d = el.dataset || {};
-  for (const name of ["done", "move", "more", "view", "course", "act"]) {
+  for (const name of ["done", "move", "more", "forget", "view", "course", "act"]) {
     if (d[name] !== undefined) return `[data-${name}="${CSS.escape(d[name])}"]`;
   }
   return "";
@@ -993,6 +1040,39 @@ function focusNear(id) {
   if (target && (!document.activeElement || document.activeElement === document.body)) target.focus({ preventScroll: true });
 }
 
+// Delete on a post the teacher deleted: the first press asks "Sure?" for 4 seconds, a second press
+// in that time takes it off the list, and otherwise the button goes back to Delete.
+let disarm = 0;
+function pressForget(id, button) {
+  clearTimeout(disarm);
+  if (S.arm !== id) {
+    const before = S.arm;
+    S.arm = id;
+    if (before) paintForget(before);
+    paintForget(id);
+    disarm = setTimeout(() => { S.arm = ""; paintForget(id); }, 4000);
+    return;
+  }
+  S.arm = "";
+  const card = button.closest(".ap-card");
+  const sibling = card ? card.nextElementSibling || card.previousElementSibling : null;
+  const after = sibling && sibling.dataset.id ? sibling.dataset.id : "";
+  forget([id]);
+  paintAll();
+  focusNear(after);
+}
+
+// Only the button is redrawn, so text being selected in another post, and the keyboard, stay put.
+function paintForget(id) {
+  const key = `#ap-list [data-forget="${CSS.escape(id)}"]`;
+  const button = document.querySelector(key);
+  const post = S.posts.find((p) => p.id === id);
+  if (!button || !post) return;
+  const focused = document.activeElement === button;
+  button.outerHTML = forgetButton(post);
+  if (focused) { const again = document.querySelector(key); if (again) again.focus({ preventScroll: true }); }
+}
+
 function wire() {
   // A click (or Enter on a button) counts as you asking, so the browser lets Google's window open;
   // a touch's pointerdown does not, and the keyboard never sent one.
@@ -1010,6 +1090,7 @@ function wire() {
     if (t.dataset.view) { S.view = t.dataset.view; S.limit = PAGE; S.drawer = false; S.enter = true; paintAll(); window.scrollTo(0, 0); return; }
     if (t.dataset.course) { S.course = t.dataset.course; S.limit = PAGE; S.drawer = false; S.enter = true; if (S.view === "settings") S.view = "todo"; paintAll(); window.scrollTo(0, 0); return; }
     if (t.dataset.done) { toggleDone(t.dataset.done, t); return; }
+    if (t.dataset.forget) { pressForget(t.dataset.forget, t); return; }
     if (t.dataset.more) { const id = t.dataset.more; if (S.expanded.has(id)) S.expanded.delete(id); else S.expanded.add(id); paintAll(); return; }
     if (t.id === "ap-more-posts") {
       const from = S.limit;
@@ -1059,6 +1140,13 @@ function wire() {
     if (t.id === "ap-bulk-back") { S.pick.back = t.value; return; }
     if (t.id === "ap-agree") { S.error = ""; store.savePrefs({ terms: t.checked ? TERMS_VERSION : "" }); paintAll(); return; }
     if (t.id === "ap-done") { S.showDone = t.checked; S.limit = PAGE; store.savePrefs({ showDone: S.showDone }); paintAll(); return; }
+    if (t.id === "ap-remove-deleted") {
+      store.savePrefs({ removeDeleted: t.checked });
+      // Switched on, the deleted posts already in the list go now; new ones go as they are found.
+      const n = t.checked ? forget(S.posts.filter((p) => p.deletedAt).map((p) => p.id)) : 0;
+      if (n) { toast(`${n} deleted post${n === 1 ? "" : "s"} removed.`); paintAll(); }
+      return;
+    }
     if (t.name === "theme") { setTheme(t.value); return; }
     if (t.id === "ap-notify") {
       if (t.checked && "Notification" in window) {
@@ -1123,7 +1211,7 @@ function startDemo() {
   const data = sample();
   S.demo = true;
   S.courses = data.courses;
-  S.posts = data.posts.map(sortPost);
+  S.posts = data.posts.map(sortPost).filter((p) => !(p.deletedAt && store.prefs().removeDeleted));
   S.marks = noMarks();
   ops = freshOps();
   S.lastSync = new Date().toISOString();
