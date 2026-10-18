@@ -865,7 +865,7 @@ function paintBanner() {
   }
   const askAge = !S.demo && S.view !== "settings" && termsOk() && (auth.signedIn() || S.lastSync) && !store.prefs().ageAsked;
   if (askAge) {
-    html += `<div class="ap-ask"><div class="ap-asktext"><b>How old are you?</b> Optional, and kept only in this browser. If you send us feedback, it says your age group, so we handle it right: under 13, we reply once and then delete it. You can change it in Settings.</div>` +
+    html += `<div class="ap-ask"><div class="ap-asktext"><b>How old are you?</b> Optional: skip it, or change it any time in Settings. <b>Why we ask:</b> feedback you send says your age group, so we follow the rules for your age. Under 13, we reply once and then delete it. It stays in this browser and is used for nothing else. <a href="../privacy.html#children" target="_blank" rel="noopener">More in the privacy policy</a></div>` +
       `<div class="ap-askrow">${AGE_GROUPS.map(([key, name]) => `<button class="ap-btn" data-age="${key}">${name}</button>`).join("")}` +
       `<button class="ap-btn" data-age="skip">Skip</button></div></div>`;
   }
