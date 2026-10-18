@@ -5,7 +5,7 @@
 // The ?v= below goes up with the one on app.js in index.html, so a new deploy never mixes old and new files.
 import * as auth from "./auth.js?v=17";
 import * as api from "./api.js?v=17";
-import * as store from "./store.js?v=18";
+import * as store from "./store.js?v=19";
 import { classify, SORT_VERSION } from "./sort.js?v=17";
 import { sample } from "./demo.js?v=17";
 import { SYNC_EVERY_MS, FIRST_READ_MOST, REFRESH_READ_MOST, SUPPORT_EMAIL, TERMS_VERSION } from "./config.js?v=16";
@@ -42,6 +42,17 @@ const esc = (text) => String(text == null ? "" : text).replace(/[&<>"']/g,
   (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 // -- times -------------------------------------------------------------------------------
+
+// Asked once after signing in, and skippable. Kept in this browser; it only goes into feedback you send.
+const AGE_GROUPS = [["under13", "Under 13"], ["13to17", "13 to 17"], ["18plus", "18 or older"]];
+const ageName = (key) => (AGE_GROUPS.find(([k]) => k === key) || ["", "Not said"])[1];
+
+// The feedback email, with the age group if one was given, so the team handles it right.
+function feedbackHref() {
+  const age = store.prefs().ageGroup;
+  const body = age ? `\n\n--\nAge: ${ageName(age).toLowerCase()}` + (age === "under13" ? " (please reply once, then delete this email)" : "") : "";
+  return `mailto:${SUPPORT_EMAIL}?subject=Class%20Ping%20feedback` + (body ? `&body=${encodeURIComponent(body)}` : "");
+}
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const dayKey = (d) => d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
@@ -539,8 +550,9 @@ async function connect(prompt = "") {
     }
     if (S.demo) { S.demo = false; S.posts = []; S.courses = []; S.lastSync = ""; S.sync = freshSync(); S.marks = noMarks(); ops = freshOps(); }
     if (S.email && who.toLowerCase() !== S.email.toLowerCase()) {
-      // A different account: the old one's classes, posts and ticks must not stay.
+      // A different account: the old one's classes, posts and ticks must not stay. Its age is asked afresh.
       await startOver();
+      store.savePrefs({ ageGroup: "", ageAsked: false });
     }
     S.email = who;
     S.reconsent = false;
@@ -851,7 +863,13 @@ function paintBanner() {
     html += `<div class="ap-note-bar warn"><span>You are signed out for now. The posts below are saved in this browser.</span>` +
       `<button class="ap-btn strong" data-act="signin">Sign in to refresh</button></div>`;
   }
-  if (!S.demo && S.view !== "settings" && S.marks.firstSync && !S.marks.askedOld && oldOptions(false).length) {
+  const askAge = !S.demo && S.view !== "settings" && termsOk() && (auth.signedIn() || S.lastSync) && !store.prefs().ageAsked;
+  if (askAge) {
+    html += `<div class="ap-ask"><div class="ap-asktext"><b>How old are you?</b> Optional, and kept only in this browser. If you send us feedback, it says your age group, so we handle it right: under 13, we reply once and then delete it. You can change it in Settings.</div>` +
+      `<div class="ap-askrow">${AGE_GROUPS.map(([key, name]) => `<button class="ap-btn" data-age="${key}">${name}</button>`).join("")}` +
+      `<button class="ap-btn" data-age="skip">Skip</button></div></div>`;
+  }
+  if (!askAge && !S.demo && S.view !== "settings" && S.marks.firstSync && !S.marks.askedOld && oldOptions(false).length) {
     html += `<div class="ap-ask"><div class="ap-asktext"><b>Tick off old work?</b> Some work was posted before you started. Tick it off now so your list does not pile up. New posts stay as they are, and Settings can bring any of it back.</div>` +
       `<div class="ap-askrow">${oldSelect("ap-old-start", false, S.pick.start, "How much old work to tick off")}` +
       `<button class="ap-btn strong" data-act="old-tick">Tick off</button><button class="ap-btn" data-act="old-keep">Keep all</button></div></div>`;
@@ -878,7 +896,7 @@ function welcome() {
     `<img src="../logo-name.png?v=5" alt="Class Ping" width="72" height="72">` +
     `<h1>Class Ping in your browser</h1>` +
     `<p class="lead">Your Google Classroom as a to-do list: homework first, due dates in plain sight, everything sorted into sections.</p>` +
-    `<p class="small beta-note">Beta: still being tested, so some bugs are not found yet. <a href="mailto:${SUPPORT_EMAIL}?subject=Class%20Ping%20feedback">Tell us if you meet one.</a></p>` +
+    `<p class="small beta-note">Beta: still being tested, so some bugs are not found yet. <a href="${esc(feedbackHref())}">Tell us if you meet one.</a></p>` +
     `<ul><li>Read-only: it never posts, edits or deletes anything in Classroom.</li>` +
     `<li>Everything stays in this browser. There is no Class Ping server and no account.</li>` +
     `<li>Google's own page signs you in. Class Ping never sees your password.</li></ul>` +
@@ -907,6 +925,10 @@ function settings() {
     `<small>${S.lastSync ? "Last checked " + esc(friendly(S.lastSync)) : "Not checked yet"}</small></div><div class="ap-rowbtns">` +
     (auth.configured() ? `<button class="ap-btn${auth.signedIn() ? "" : " strong"}" data-act="${auth.signedIn() ? "switch" : "signin"}">${auth.signedIn() ? "Switch account" : "Sign in"}</button>` : "") +
     `<button class="ap-btn" data-act="signout">Sign out and erase</button></div></div></section>` +
+    `<section class="ap-set"><h2>Age</h2><p>Kept only in this browser. If you send us feedback, the email says your age group, so we handle it right: under 13, we reply once and then delete it.</p>` +
+    `<label class="ap-row"><div><b>Your age</b><small>Asked once after signing in. Change it here any time.</small></div>` +
+    `<select class="ap-pick" id="ap-age" aria-label="Your age">` +
+    [["", "Not said"], ...AGE_GROUPS].map(([key, name]) => `<option value="${key}"${prefs.ageGroup === key ? " selected" : ""}>${name}</option>`).join("") + `</select></label></section>` +
     `<section class="ap-set"><h2>Notifications</h2><p>Get a desktop notification when a new post arrives. This only works while this page is open in a tab.</p>` +
     `<label class="ap-row"><div><b>Notify me of new posts</b><small>${perm === "denied" ? "Your browser has blocked notifications for this site." : perm === "unsupported" ? "This browser cannot show notifications." : "Asks your browser's permission first."}</small></div>` +
     `<input type="checkbox" id="ap-notify" role="switch"${prefs.notify && perm === "granted" ? " checked" : ""}${perm === "denied" || perm === "unsupported" ? " disabled" : ""}></label>` +
@@ -956,6 +978,8 @@ function paintEverything() {
   root.classList.toggle("welcome-mode", showWelcome);
   root.classList.toggle("busy", S.syncing || S.connecting);
   syncDrawer();
+  const feedbackLink = $("#ap-feedback");
+  if (feedbackLink) feedbackLink.href = feedbackHref();     // follows the age given since
   if (showWelcome) {
     const had = $("#ap-page .ap-welcome");
     $("#ap-page").innerHTML = welcome();
@@ -1086,6 +1110,11 @@ function wire() {
   $("#ap-root").addEventListener("click", (event) => {
     const t = event.target.closest("button, a, label");
     if (!t) return;
+    if (t.dataset.age) {
+      store.savePrefs(t.dataset.age === "skip" ? { ageAsked: true } : { ageGroup: t.dataset.age, ageAsked: true });
+      paintAll();
+      return;
+    }
     if (t.dataset.later) { store.savePrefs({ remindUntil: Date.now() + 86400000 }); paintNav(); return; }
     if (t.dataset.view) { S.view = t.dataset.view; S.limit = PAGE; S.drawer = false; S.enter = true; paintAll(); window.scrollTo(0, 0); return; }
     if (t.dataset.course) { S.course = t.dataset.course; S.limit = PAGE; S.drawer = false; S.enter = true; if (S.view === "settings") S.view = "todo"; paintAll(); window.scrollTo(0, 0); return; }
@@ -1135,6 +1164,7 @@ function wire() {
     if (t.dataset && t.dataset.move) { mark("moved", t.dataset.move, t.value); persist(); paintAll(); return; }
     if (t.id === "ap-range") { S.range = t.value; S.limit = PAGE; paintAll(); return; }
     if (t.id === "ap-old-start") { S.pick.start = t.value; return; }
+    if (t.id === "ap-age") { store.savePrefs({ ageGroup: t.value, ageAsked: true }); paintAll(); return; }
     if (t.id === "ap-remind") { store.savePrefs({ remindDays: Number(t.value), remindUntil: 0 }); paintNav(); return; }
     if (t.id === "ap-bulk-tick") { S.pick.tick = t.value; return; }
     if (t.id === "ap-bulk-back") { S.pick.back = t.value; return; }
@@ -1230,7 +1260,7 @@ function chrome() {
     `<nav id="ap-nav" aria-label="Lists"></nav>` +
     `<div class="ap-side-foot"><div id="ap-foot"></div>` +
     `<button id="ap-settings" class="ap-nav"><span>Settings</span></button>` +
-    `<a class="ap-nav" href="mailto:${SUPPORT_EMAIL}?subject=Class%20Ping%20feedback"><span>Send feedback</span></a>` +
+    `<a class="ap-nav" id="ap-feedback" href="${esc(feedbackHref())}"><span>Send feedback</span></a>` +
     `<a class="ap-nav" href="../"><span>Class Ping home</span></a>` +
     `<p class="ap-legal"><a href="../privacy.html">Privacy</a><i>&middot;</i><a href="../terms.html">Terms</a><i>&middot;</i><a href="https://apps.microsoft.com/detail/9n9698qbxttg" target="_blank" rel="noopener">&#9733; Rate</a></p></div></aside>` +
     `<main class="ap-main"><div id="ap-page"></div></main><div id="ap-toasts" aria-live="polite"></div></div>`;
