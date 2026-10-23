@@ -25,6 +25,7 @@ const THEMES = [["light", "Light"], ["graphite", "Graphite"], ["system", "Match 
 const SITE_PREFS = "classping-site-settings";      // the same key the rest of the site uses
 
 const S = {
+  before: null, savedAt: 0,
   view: "todo", course: "any", range: "any", showDone: false, q: "", limit: PAGE,
   posts: [], courses: [], names: {}, marks: { done: {}, moved: {}, seen: {}, firstSync: false },
   sync: freshSync(),                                          // per class: Google's newest change, and the last prune
@@ -562,6 +563,7 @@ async function connect(prompt = "") {
       // A different account: the old one's classes, posts and ticks must not stay. Its age is asked afresh.
       await startOver();
       store.savePrefs({ ageGroup: "", ageAsked: false, mutedClasses: [] });
+      S.before = null;                               // emptied by the switch, not a change to save
     }
     S.email = who;
     S.reconsent = false;
@@ -606,6 +608,7 @@ function renewOnClick(event) {
 
 async function signOutAndErase() {
   if (!confirm("Sign out, give Google's permission back, and erase everything Class Ping saved in this browser?")) return;
+  S.before = null;                                 // everything goes: nothing is left to save
   // Google's permission is given back with a live token. A new tab, or one an hour old, has none:
   // one is asked for quietly first (this click lets Google's window open), or the page says how instead.
   let handBack = auth.signedIn();
@@ -634,6 +637,68 @@ function sitePrefs() {
   try { return { theme: "light", text: "normal", links: "plain", ...(JSON.parse(localStorage.getItem(SITE_PREFS) || "{}") || {}) }; }
   catch (e) { return { theme: "light", text: "normal", links: "plain" }; }
 }
+// -- Settings: Save, Don't save, Reset to defaults ------------------------------------------
+// A change shows at once, so you can see it, but it is kept only when you press Save. Leaving
+// Settings with changes not saved asks first; Don't save, or closing the tab, puts them back.
+// S.before is how they were when Settings opened (or when Save was last pressed).
+const PAGE_DEFAULTS = { notify: false, remindDays: 2, removeDeleted: false, mutedClasses: [], theme: "light" };
+function pageChoices() {
+  const p = store.prefs();
+  return { notify: !!p.notify, remindDays: Number(p.remindDays), removeDeleted: !!p.removeDeleted,
+    ageGroup: p.ageGroup || "", mutedClasses: [...(p.mutedClasses || [])].map(String).sort(), theme: sitePrefs().theme };
+}
+function settingsDirty() {
+  return S.view === "settings" && S.before !== null && JSON.stringify(pageChoices()) !== JSON.stringify(S.before);
+}
+function putChoices(choices) {
+  const { theme, ...rest } = choices;
+  store.savePrefs({ ...rest, mutedClasses: [...rest.mutedClasses] });
+  if (theme !== sitePrefs().theme) setTheme(theme);
+}
+function paintSaveBar() {
+  const save = $("#ap-save"), note = $("#ap-savenote");
+  if (!save || !note) return;
+  const dirty = settingsDirty();
+  save.disabled = !dirty;
+  note.textContent = dirty ? "Changes not saved yet." : (Date.now() - S.savedAt < 3000 ? "Saved." : "Changes show at once. Save keeps them.");
+  note.classList.toggle("ok", !dirty && Date.now() - S.savedAt < 3000);
+}
+function saveSettings() { S.before = pageChoices(); S.savedAt = Date.now(); paintSaveBar(); setTimeout(paintSaveBar, 3100); }
+// Leaving with changes not saved: the question, and `then` after Save or Don't save.
+function askToSave(then) {
+  if ($("#ap-saveask")) return;
+  const box = document.createElement("div");
+  box.id = "ap-saveask";
+  box.className = "ap-saveask";
+  box.innerHTML = `<div class="ap-saveask-card" role="dialog" aria-modal="true" aria-labelledby="ap-saveask-title">` +
+    `<h2 id="ap-saveask-title">Save your changes?</h2><p>You changed some settings. Save keeps them. Don't save puts them back the way they were.</p>` +
+    `<div class="ap-saveask-actions"><button type="button" class="ap-btn" data-ask="keep">Keep editing</button>` +
+    `<button type="button" class="ap-btn" data-ask="discard">Don't save</button><button type="button" class="ap-btn strong" data-ask="save">Save</button></div></div>`;
+  const close = () => { box.remove(); document.removeEventListener("keydown", onKey, true); };
+  const onKey = (event) => { if (event.key === "Escape") { event.preventDefault(); close(); } };
+  box.addEventListener("click", (event) => {
+    const b = event.target.closest("[data-ask]");
+    if (!b) return;
+    close();
+    if (b.dataset.ask === "save") { saveSettings(); then(); }
+    else if (b.dataset.ask === "discard") { putChoices(S.before); S.before = pageChoices(); then(); }
+  });
+  document.addEventListener("keydown", onKey, true);
+  document.body.appendChild(box);
+  box.querySelector('[data-ask="save"]').focus();
+}
+// After a sidebar row: To-Do, scrolled to that post, lit up for a moment.
+function goToPost(id) {
+  S.view = "todo"; S.course = "any"; S.drawer = false; S.enter = true;
+  S.limit = Math.max(S.limit, list("todo").findIndex((p) => p.id === id) + 1);
+  paintAll();
+  const card = document.querySelector(`.ap-card[data-id="${CSS.escape(id)}"]`);
+  if (!card) return;
+  card.scrollIntoView({ block: "center", behavior: calm() ? "auto" : "smooth" });
+  card.classList.add("ap-lit");
+  setTimeout(() => card.classList.remove("ap-lit"), 1600);
+}
+
 function setTheme(theme) {
   const next = { ...sitePrefs(), theme };
   try { localStorage.setItem(SITE_PREFS, JSON.stringify(next)); } catch (e) { /* blocked */ }
@@ -678,6 +743,11 @@ function paintCheck() {
 const BELL_OFF = `<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round">` +
   `<path d="M4.5 11.5V7a3.5 3.5 0 0 1 5.6-2.8M11.5 7.5v4M3 11.5h10M6.6 13.6a1.5 1.5 0 0 0 2.8 0"/><path d="M2.5 2.5l11 11"/></svg>`;
 
+const WAITING_SHOWN = 5;          // rows on the waiting card; the rest are "+ N more", which opens To-Do
+// A clock, for the waiting-work card; it takes the due colour from the card's CSS.
+const CLOCK = `<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">` +
+  `<circle cx="8" cy="8" r="6.3"/><path d="M8 4.6V8l2.3 1.5"/></svg>`;
+
 function navItem(key, label, count) {
   const on = S.view === key;
   return `<button class="ap-nav${on ? " on" : ""}" data-view="${key}"${on ? ' aria-current="page"' : ""}>` +
@@ -693,9 +763,16 @@ function paintNav() {
   html += `<div class="ap-heading">Sections</div>` + SECTIONS.map((s) => navItem(s, s, count(s))).join("");
   const waiting = S.demo ? [] : waitingPosts();
   if (waiting.length) {
-    const age = Math.max(0, Math.floor((Date.now() - Date.parse(when(waiting[0]))) / 86400000));
-    html += `<div class="ap-wait"><button type="button" class="ap-waitlink" data-view="todo">${waiting.length} to-do${waiting.length === 1 ? "" : "s"} waiting, ` +
-      `the oldest ${age} day${age === 1 ? "" : "s"}</button><button type="button" class="ap-later" data-later="1">Later</button></div>`;
+    const shown = waiting.slice(0, WAITING_SHOWN);
+    html += `<div class="ap-wait"><div class="ap-wait-head">${CLOCK}<strong>Waiting &middot; ${waiting.length}</strong>` +
+      `<button type="button" class="ap-later" data-later="1">Later</button></div>` +
+      shown.map((p) => {
+        const days = Math.max(0, Math.floor((Date.now() - Date.parse(when(p))) / 86400000));
+        return `<button type="button" class="ap-wait-row" data-goto="${esc(p.id)}"><span>${esc(p.title || "(untitled)")}</span>` +
+          `<em>${days} day${days === 1 ? "" : "s"}</em></button>`;
+      }).join("") +
+      (waiting.length > shown.length ? `<button type="button" class="ap-wait-row" data-view="todo"><span>+ ${waiting.length - shown.length} more in To-Do</span></button>` : "") +
+      `</div>`;
   }
   if (S.courses.length) {
     const quiet = mutedClasses();
@@ -813,7 +890,7 @@ function card(post, index = 0) {
 function paintHead() {
   const title = $("#ap-title"), note = $("#ap-note");
   if (!title || !note) return;
-  if (S.view === "settings") { title.textContent = "Settings"; note.textContent = "Everything here is saved in this browser."; return; }
+  if (S.view === "settings") { title.textContent = "Settings"; note.textContent = "Press Save to keep your changes."; return; }
   const rows = list(S.view);
   title.textContent = S.view === "todo" ? "To-Do" : S.view === "all" ? "All posts" : S.view;
   const bits = [S.view === "todo" ? (rows.length ? `${rows.length} thing${rows.length === 1 ? "" : "s"} to do` : S.q ? "No matches" : "Nothing to do")
@@ -1154,10 +1231,14 @@ function paintEverything() {
   if (!$("#ap-list") && S.view !== "settings") mountPage();
   if (S.view === "settings") {
     const had = $("#ap-page .ap-settings");
-    $("#ap-page").innerHTML = `<header class="ap-head"><h1 id="ap-title">Settings</h1><p id="ap-note"></p></header><div id="ap-banner"></div><div class="ap-settings${had || calm() ? "" : " enter"}">${settings()}</div>`;
-    paintHead(); paintNav(); paintBanner(); paintCheck();
+    if (S.before === null) S.before = pageChoices();
+    $("#ap-page").innerHTML = `<header class="ap-head"><h1 id="ap-title">Settings</h1><p id="ap-note"></p></header><div id="ap-banner"></div><div class="ap-settings${had || calm() ? "" : " enter"}">${settings()}</div>` +
+      `<div class="ap-savebar"><p id="ap-savenote" role="status"></p><button type="button" class="ap-btn" data-act="reset-settings">Reset to defaults</button>` +
+      `<button type="button" class="ap-btn strong" id="ap-save" data-act="save-settings">Save</button></div>`;
+    paintHead(); paintNav(); paintBanner(); paintCheck(); paintSaveBar();
     return;
   }
+  S.before = null;
   if ($("#ap-page .ap-settings") || $("#ap-page .ap-welcome")) { mountPage(); S.enter = true; }
   paintNav(); paintHead(); paintTools(); paintBanner(); paintList(); paintCheck();
 }
@@ -1274,6 +1355,18 @@ function wire() {
   $("#ap-root").addEventListener("click", (event) => {
     const t = event.target.closest("button, a, label");
     if (!t) return;
+    // Leaving Settings with changes not saved: ask first, then carry on with the same click.
+    const leaving = t.matches("[data-view], [data-course], [data-goto], #ap-grades, #ap-settings");
+    if (leaving && settingsDirty()) { event.preventDefault(); askToSave(() => t.click()); return; }
+    if (t.dataset.goto) { goToPost(t.dataset.goto); return; }
+    if (t.dataset.act === "save-settings") { saveSettings(); return; }
+    if (t.dataset.act === "reset-settings") {
+      // Two presses, no pop-up: the first asks, the second resets. It lapses after 4 seconds.
+      if (t.dataset.sure) { putChoices({ ...PAGE_DEFAULTS, ageGroup: pageChoices().ageGroup }); paintAll(); return; }
+      t.dataset.sure = "1"; t.textContent = "Click again to reset";
+      setTimeout(() => { if (t.isConnected) { delete t.dataset.sure; t.textContent = "Reset to defaults"; } }, 4000);
+      return;
+    }
     if (t.dataset.age) {
       store.savePrefs(t.dataset.age === "skip" ? { ageAsked: true } : { ageGroup: t.dataset.age, ageAsked: true });
       paintAll();
@@ -1410,6 +1503,10 @@ function wire() {
     if (auth.signedIn() && !fresh) sync({ quiet: true });
   });
   window.addEventListener("pagehide", saveNow);
+  // Closing the tab with Settings changes not saved: the browser asks, and leaving puts them back.
+  window.addEventListener("beforeunload", (event) => { if (settingsDirty()) { event.preventDefault(); event.returnValue = ""; } });
+  window.addEventListener("pagehide", () => { if (settingsDirty()) putChoices(S.before); });
+  $("#ap-root").addEventListener("change", () => setTimeout(paintSaveBar, 0));
   window.addEventListener("offline", () => paintAll());
   window.addEventListener("online", () => {
     S.error = "";

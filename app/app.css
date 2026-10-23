@@ -321,13 +321,38 @@ html.theme-fade, html.theme-fade * { transition: background-color 0.2s ease, col
   .ap-welcome { min-height: 0; padding-bottom: 24px; display: block; }
 }
 
-/* waiting work: a quiet line under the sections */
-.ap-wait { display: flex; align-items: baseline; gap: 8px; margin: 12px 10px 0; font-size: 13px; line-height: 1.35; }
-.ap-waitlink, .ap-later { background: none; border: 0; padding: 0; font: inherit; color: var(--muted); cursor: pointer; text-align: left; }
-.ap-waitlink { flex: 1; }
-.ap-later { color: var(--faint); flex: none; }
-.ap-waitlink:hover, .ap-later:hover { color: var(--text); }
-.ap-waitlink:focus-visible, .ap-later:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+/* waiting work: a small card under the sections, one row per to-do */
+.ap-wait { margin: 12px 0 2px; padding: 5px 4px; border: 1px solid var(--edge); border-radius: var(--r); background: var(--card); font-size: 13px; line-height: 1.35; }
+.ap-wait-head { display: flex; align-items: center; gap: 8px; padding: 0 0 2px 8px; }
+.ap-wait-head svg { flex: none; color: var(--due); }
+.ap-wait-head strong { flex: 1; color: var(--text); font-weight: 600; font-size: 14px; }
+.ap-wait-row { display: flex; align-items: baseline; gap: 8px; width: 100%; padding: 6px 8px; border: 0; border-radius: 3px; background: none;
+  font: 14px var(--ui); color: var(--muted); text-align: left; cursor: pointer; }
+.ap-wait-row span { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.ap-wait-row em { flex: none; font-style: normal; font-size: 13px; color: var(--due); }
+.ap-wait-row:hover { background: color-mix(in srgb, var(--text) 7%, var(--card)); color: var(--text); }
+.ap-wait-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.ap-later { height: 26px; padding: 0 8px; background: none; border: 0; border-radius: var(--r); font: 600 12.5px/1 var(--ui); color: var(--faint); cursor: pointer; }
+.ap-later:hover { color: var(--text); background: color-mix(in srgb, var(--text) 7%, var(--card)); }
+.ap-later:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* a post the waiting card pointed to, lit up for a moment */
+.ap-card.ap-lit { background: color-mix(in srgb, var(--due) 12%, transparent); transition: background-color 0.4s ease; }
+
+/* Settings: Save and Reset to defaults, kept at the foot of the window while you scroll */
+.ap-savebar { position: sticky; bottom: 0; z-index: 5; display: flex; align-items: center; gap: 8px; margin-top: 24px; padding: 12px 0 14px;
+  border-top: 1px solid var(--divider); background: var(--bg); }
+.ap-savebar p { flex: 1; margin: 0; color: var(--muted); font-size: 13.5px; }
+.ap-savebar p.ok { color: var(--ok, var(--accent)); }
+.ap-savebar .ap-btn[disabled] { opacity: 0.45; cursor: default; }
+
+/* Leaving Settings with changes not saved */
+.ap-saveask { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px; background: rgb(0 0 0 / 0.45); }
+.ap-saveask-card { width: min(440px, 100%); padding: 20px 22px 18px; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); color: var(--text); }
+.ap-saveask-card h2 { margin: 0; font: 600 19px/1.3 var(--ui); }
+.ap-saveask-card p { margin: 8px 0 0; color: var(--muted); font-size: 14px; line-height: 1.45; }
+.ap-saveask-actions { display: flex; gap: 8px; margin-top: 18px; }
+.ap-saveask-actions [data-ask="keep"] { margin-right: auto; }
 
 /* -- Grades: the calculator for marks you type in -------------------------------------- */
 .ap-grades .ap-gpick { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 14px 24px; margin-bottom: 16px; }
