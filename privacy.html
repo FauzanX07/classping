@@ -43,7 +43,7 @@
 
   <div class="page-head">
     <h1>Privacy policy</h1>
-    <p class="updated">Last updated: 18 October 2026</p>
+    <p class="updated">Last updated: 23 October 2026</p>
   </div>
 
   <div class="doc">
@@ -55,7 +55,7 @@
       <li>Class Ping reads your Google Classroom <strong>on your PC</strong> and keeps what it reads <strong>on your PC</strong>. There is no Class Ping account and no Class Ping server holding your classes.</li>
       <li>Class Ping <strong>never sees, types or stores your Google password</strong>. <a href="#google-sign-in">See where it goes.</a></li>
       <li><strong>No ads, no analytics, no tracking.</strong> We never sell your data or use it for advertising.</li>
-      <li>Two things can leave your PC, and only if you choose them: posts sent to an <strong>AI company</strong> (off unless you turn it on), and <strong>feedback</strong> you send us.</li>
+      <li>Two things can leave your PC, and only if you choose them: posts sent to an <strong>AI company</strong> (off unless you turn it on), and <strong>feedback</strong> you send us. <strong>Class Ping AI</strong> reads posts on your PC and sends them nowhere.</li>
       <li>Under 13? Class Ping collects nothing about you. Ask a parent or teacher before sending us feedback, and leave your name and email out.</li>
     </ul>
   </div>
@@ -88,8 +88,10 @@
     <table>
       <tr><th>Your Classroom content</th><td>Class names; posts, assignments, questions and materials, with their text, due dates and comments; the attachments (photos, PDFs, documents and other files); and the names and profile pictures of the teachers and classmates who appear in them.</td></tr>
       <tr><th>Words read from attachments</th><td>Text read out of photos and PDFs by Windows' own text recognition, on your PC, so you can search it.</td></tr>
-      <tr><th>Your choices</th><td>Settings, which posts you moved to another section or marked done, and a note of which posts Class Ping has already told you about.</td></tr>
+      <tr><th>Your choices</th><td>Settings, which posts you moved to another section or marked done, which classes you muted, and a note of which posts Class Ping has already told you about.</td></tr>
+      <tr><th>Marks you type</th><td>The subjects, marks and totals you type into the grade calculator, and the country you picked for its grades. They are typed by you, never read from Classroom, and never sent anywhere.</td></tr>
       <tr><th>Your age group, if you give it</th><td>Under 13, 13 to 17 or 18 or older, as you chose it when Class Ping asked after you signed in. You can skip the question, and change the answer in Settings. Under 13, it keeps every AI company away from your posts, and it decides what the feedback form tells you.</td></tr>
+      <tr><th>Class Ping AI, if you download it</th><td>The AI model file (1.1 or 2.5 GB, chosen by how much memory your PC has) and the program that runs it. Posts it reads, and what it answers, stay on your PC like the rest.</td></tr>
       <tr><th>AI keys, if you add any</th><td>Stored encrypted with Windows' own per-user protection (DPAPI), so only your Windows account on this PC can read them.</td></tr>
       <tr><th>Your Google sign-in</th><td>With Sign in with Google: the permission Google gives Class Ping, encrypted with Windows' own protection. With Full features: a "stay signed in" record kept by Google Chrome, in a folder used only by Class Ping. Either way, Class Ping never sees your password.</td></tr>
       <tr><th>An activity log</th><td>A record of what the app did, used to find problems. It holds no passwords, but it can contain class and post titles. Old entries are removed automatically.</td></tr>
@@ -104,6 +106,8 @@
   <p>Class Ping asks Google for your Classroom, in the way described in section 4, and loads profile pictures from Google. With Full features, it also downloads your attachments and, when you write a comment in Class Ping, posts that comment to Classroom for you. For a YouTube attachment it loads the video's preview picture from YouTube. <a href="https://policies.google.com/privacy">Google's privacy policy</a> applies to these.</p>
   <h3>To an AI company, only if you turn it on</h3>
   <p>AI is <strong>off</strong> by default: posts are sorted on your PC. If you choose an AI service (Groq, Google Gemini, OpenAI or Anthropic Claude) and add your own key, then for each post Class Ping sends that company: the class name, the post's title, its text, its dates, the names of its attachments, and its photos. It uses the answer to write a short "what to do" line, to suggest a section, and to translate posts. A post's text can mention people by name. Class Ping does <strong>not</strong> send the teacher's name, the comments, or your email address. That company's own privacy policy applies to what it receives. If you choose Ollama, the post goes to Ollama running on your own PC and nowhere else. You can turn AI off, and delete your keys, at any time in Settings.</p>
+  <h3>Class Ping AI: nothing is sent</h3>
+  <p>Class Ping AI is an AI that runs on your own PC. It is optional: Class Ping offers it once, and Settings &gt; Sorting and AI has it. If you choose it, posts are read on your PC and <strong>nothing about your posts is sent anywhere</strong>; it works with no internet. It is downloaded once, from <a href="https://huggingface.co/">Hugging Face</a>, where the model is published. Like any website you download from, Hugging Face sees your internet address and which file was asked for. Nothing else is sent: not your posts, your account or your email. <a href="https://huggingface.co/privacy">Hugging Face's privacy policy</a> applies to the download.</p>
   <h3>Feedback you choose to send</h3>
   <p>Only when you press <strong>Send</strong> in the feedback window, Class Ping sends us: the name you typed, the email address you typed (optional), your message, the versions of Class Ping and Windows, how posts are being sorted, your age group if you gave one, and, only if you leave the box ticked, recent lines of the activity log with email addresses and web links removed first. The log can still show class names, post titles and attachment file names, so leave the box unticked if you would rather not send those. It reaches our support inbox. We use it only to read your message, reply to you, and fix problems.</p>
 
@@ -149,7 +153,7 @@
   <p>The web version at <a href="app/">classping.wazeem.com/app</a> works inside your browser. It has <strong>no Class Ping server</strong>: your Classroom is read straight from Google into your browser, and we never see it.</p>
   <ul>
     <li><strong>Signing in.</strong> You approve Class Ping on Google's own screen, for the same read-only permissions as in section 4. Google gives the page an access token that lasts about an hour. It is kept in your browser tab's session storage, is never sent to us, and is forgotten when you close the tab or sign out. The page never sees your password: press F12 on the web version, press Ctrl+F in the Elements tab and search for <strong>type="password"</strong>, and there is no result.</li>
-    <li><strong>What it keeps, in your browser only.</strong> Your classes and posts, which posts you marked done or moved, a note of which posts you have seen, your theme and notification choices, your age group if you gave one, and the email address of the account you used (to pre-select it next time). This is kept in your browser's own storage (IndexedDB and local storage) on your device.</li>
+    <li><strong>What it keeps, in your browser only.</strong> Your classes and posts, which posts you marked done or moved, a note of which posts you have seen, your theme and notification choices, your age group if you gave one, the classes you muted, the marks you typed into the grade calculator, and the email address of the account you used (to pre-select it next time). This is kept in your browser's own storage (IndexedDB and local storage) on your device.</li>
     <li><strong>What leaves your browser.</strong> Requests to Google to sign you in and read your Classroom, Google's sign-in script from <code>accounts.google.com</code>, and YouTube's preview pictures when a post has a video. There is no AI in the web version, no analytics, no advertising and no tracking. Your browser's Network tab (F12) shows the same list.</li>
     <li><strong>Hosting.</strong> The website is hosted on GitHub Pages. Like any web host, GitHub may log the address and requests of people who load the pages. We do not receive or use those logs, and GitHub never receives your Google data.</li>
     <li><strong>Notifications.</strong> Only if you turn them on. Your browser shows them while the page is open; nothing is sent to a server.</li>
@@ -165,7 +169,8 @@
   <h2 id="shared">6. Who it is shared with</h2>
   <ul>
     <li><strong>Google</strong>: to load your Classroom, as above. Our support inbox is also a Google (Gmail) account, so feedback you send is stored by Google for us.</li>
-    <li><strong>The AI company you chose</strong>, only if you turned AI on.</li>
+    <li><strong>The AI company you chose</strong>, only if you turned AI on. Class Ping AI is not a company: it runs on your PC.</li>
+      <li><strong>Hugging Face</strong>, only when you download Class Ping AI: they see your internet address, as any download site does, and nothing else.</li>
     <li><strong>Nobody else.</strong> We have no advertisers, analytics companies, data brokers or other partners. We would share information only if the law required it.</li>
   </ul>
 
@@ -180,14 +185,15 @@
   <h2 id="how-long">8. How long it is kept</h2>
   <ul>
     <li><strong>In your browser (web version)</strong>: until you press "Sign out and erase" or clear the site's data in your browser. The Google access token is forgotten when you close the tab.</li>
-    <li><strong>On your PC</strong>: until you delete it or uninstall Class Ping. You can choose to keep downloaded attachments for only the last 7 days.</li>
+    <li><strong>On your PC</strong>: until you delete it or uninstall Class Ping. You can choose to keep downloaded attachments for only the last 7 days. Signing out deletes the account's classes, posts, attachments, muted classes and the marks typed into the grade calculator.</li>
     <li><strong>Feedback</strong>: only as long as we need to reply and fix the problem, and never more than one year. Ask us and we will delete it sooner.</li>
   </ul>
 
   <h2 id="controls">9. Your controls</h2>
   <ul>
     <li><strong>See it</strong>: everything Class Ping keeps is shown in the app, and the files are in the folders named in section 2. To see the feedback we hold from you, email us.</li>
-    <li><strong>Turn AI off and delete keys</strong>: Settings &gt; Sorting and AI.</li>
+    <li><strong>Turn AI off and delete keys</strong>: Settings &gt; Sorting and AI. Class Ping AI has a Remove button there, which deletes the model from your PC.</li>
+    <li><strong>Delete your marks</strong>: in the grade calculator, Delete removes a sheet. Signing out, or erasing saved data in Settings &gt; Storage, deletes them all.</li>
     <li><strong>Keep fewer files</strong>: Settings &gt; Storage, to keep attachments for only the last 7 days.</li>
     <li><strong>Delete everything (web version)</strong>: Settings &gt; Sign out and erase.</li>
     <li><strong>Delete everything</strong>: uninstall Class Ping. The Microsoft Store version removes its data when it is uninstalled. Then delete the folder <code>Documents\Class Ping</code> to remove downloaded attachments.</li>
@@ -208,7 +214,7 @@
     <li><strong>We do not collect personal information from children.</strong> What Class Ping reads from Classroom stays on the child's own PC and is never sent to us.</li>
     <li>There are no accounts, no chat with strangers, no ads, and nothing a child can make public through Class Ping.</li>
     <li>The only way information can reach us is the optional feedback form. It tells anyone under 13 to ask a parent or teacher first, and to leave their name and email out.</li>
-    <li>After you sign in, Class Ping asks your age once: under 13, 13 to 17, or 18 or older. You can skip it. If you say you are under 13, the app keeps every AI company away from your posts, so they never leave the PC, and feedback you send says so, so we reply once and then delete it. The answer stays on your PC, or in your browser, and you can change it in Settings.</li>
+    <li>After you sign in, Class Ping asks your age once: under 13, 13 to 17, or 18 or older. You can skip it. If you say you are under 13, the app keeps every AI company away from your posts, so they never leave the PC (Class Ping AI, which runs on the PC, can still be used), and feedback you send says so, so we reply once and then delete it. The answer stays on your PC, or in your browser, and you can change it in Settings.</li>
     <li>If we learn that feedback came from a child under 13, we use any contact details in it only to reply once to that message, and then delete the message and the contact details. We never use them for anything else or share them.</li>
     <li>AI is off by default. A parent can keep it off, so posts never leave the PC.</li>
     <li><strong>Parents</strong> can ask us at any time to show them, or delete, anything we hold from their child, and can tell us not to collect anything more. Email <a href="mailto:classpingsupport@gmail.com">classpingsupport@gmail.com</a>.</li>

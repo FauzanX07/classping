@@ -2,12 +2,12 @@
 // IndexedDB; this keeps the page itself). Network first, so a new version of the
 // site is always picked up when online. Only this site's own files are kept:
 // requests to Google are never touched.
-const CACHE = "classping-web-v15";       // bump with the ?v= on app.js; old copies are dropped when this changes
+const CACHE = "classping-web-v16";       // bump with the ?v= on app.js; old copies are dropped when this changes
 
 // The page and its files, kept at the first visit, so the very first reload after going offline works
 // too. The ?v= numbers are the ones index.html and app.js ask for (they go up together with CACHE).
 const SHELL = [
-  "./", "manifest.webmanifest", "app.css?v=19", "app.js?v=24",
+  "./", "manifest.webmanifest", "app.css?v=20", "app.js?v=25", "grades.js?v=1", "grade_scales.json?v=1",
   "auth.js?v=17", "api.js?v=17", "store.js?v=19", "sort.js?v=17", "demo.js?v=17", "config.js?v=16",
   "../style.css?v=19", "../site.js?v=12", "../logo.png?v=5", "../logo-name.png?v=5", "../favicon.ico",
 ];

@@ -8,6 +8,7 @@ import * as api from "./api.js?v=17";
 import * as store from "./store.js?v=19";
 import { classify, SORT_VERSION } from "./sort.js?v=17";
 import { sample } from "./demo.js?v=17";
+import * as grades from "./grades.js?v=1";
 import { SYNC_EVERY_MS, FIRST_READ_MOST, REFRESH_READ_MOST, SUPPORT_EMAIL, TERMS_VERSION } from "./config.js?v=16";
 
 const EMAIL_SCOPE = "https://www.googleapis.com/auth/userinfo.email";
@@ -32,6 +33,7 @@ const S = {
   gen: 0,                                                     // bumps when a different account starts over
   pick: { start: "", tick: "", back: "" }, bulkNote: "",     // the old-work choices and what the last one did
   arm: "",                                                    // the deleted post whose Delete button is asking "Sure?"
+  grades: null,                                               // the grade calculator's sheets, read when Grades first opens
 };
 
 const $ = (selector, root = document) => root.querySelector(selector);
@@ -485,7 +487,14 @@ async function sync({ quiet = false } = {}) {
 }
 
 // New posts: a note on the page, and a desktop notification if you allowed them.
+// A muted class (a club, an elective): its new posts still come into the lists, with no
+// notification and no note on the page.
+const mutedClasses = () => new Set(Array.isArray(store.prefs().mutedClasses) ? store.prefs().mutedClasses.map(String) : []);
+
 function tell(fresh) {
+  const quiet = mutedClasses();
+  fresh = fresh.filter((p) => !quiet.has(String(p.courseId)));
+  if (!fresh.length) return;
   const first = fresh[0];
   const line = fresh.length === 1
     ? `${shortClass(first.courseName)}: ${first.title}`
@@ -552,7 +561,7 @@ async function connect(prompt = "") {
     if (S.email && who.toLowerCase() !== S.email.toLowerCase()) {
       // A different account: the old one's classes, posts and ticks must not stay. Its age is asked afresh.
       await startOver();
-      store.savePrefs({ ageGroup: "", ageAsked: false });
+      store.savePrefs({ ageGroup: "", ageAsked: false, mutedClasses: [] });
     }
     S.email = who;
     S.reconsent = false;
@@ -665,6 +674,10 @@ function paintCheck() {
   button.textContent = S.syncing ? "Checking" : "Check now";
 }
 
+// A bell with a line through it, drawn here so it takes the text colour.
+const BELL_OFF = `<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round">` +
+  `<path d="M4.5 11.5V7a3.5 3.5 0 0 1 5.6-2.8M11.5 7.5v4M3 11.5h10M6.6 13.6a1.5 1.5 0 0 0 2.8 0"/><path d="M2.5 2.5l11 11"/></svg>`;
+
 function navItem(key, label, count) {
   const on = S.view === key;
   return `<button class="ap-nav${on ? " on" : ""}" data-view="${key}"${on ? ' aria-current="page"' : ""}>` +
@@ -685,12 +698,15 @@ function paintNav() {
       `the oldest ${age} day${age === 1 ? "" : "s"}</button><button type="button" class="ap-later" data-later="1">Later</button></div>`;
   }
   if (S.courses.length) {
+    const quiet = mutedClasses();
     html += `<div class="ap-heading">Classes</div>`;
     html += `<button class="ap-nav" data-course="any"${S.course === "any" ? ' aria-current="true"' : ""}><span>All classes</span></button>`;
     for (const course of S.courses) {
       const n = S.posts.filter((p) => p.courseId === course.id && (S.showDone || !isDone(p))).length;
       html += `<button class="ap-nav ap-class${S.course === course.id ? " on" : ""}" data-course="${esc(course.id)}"${S.course === course.id ? ' aria-current="true"' : ""}>` +
-        `<i style="background:${colourFor(shortClass(course.name))}" aria-hidden="true"></i><span>${esc(shortClass(course.name))}</span><em>${n || ""}</em></button>`;
+        `<i style="background:${colourFor(shortClass(course.name))}" aria-hidden="true"></i><span>${esc(shortClass(course.name))}</span>` +
+        (quiet.has(String(course.id)) ? `<b class="ap-quiet" title="Muted: no notifications">${BELL_OFF}<span class="vh">(muted)</span></b>` : "") +
+        `<em>${n || ""}</em></button>`;
     }
   }
   holder.innerHTML = html;
@@ -702,6 +718,8 @@ function paintNav() {
   }
   const gear = $("#ap-settings");
   if (gear) gear.classList.toggle("on", settings);
+  const calc = $("#ap-grades");
+  if (calc) calc.classList.toggle("on", S.view === "grades");
   document.title = (list("todo").length ? `(${list("todo").length}) ` : "") + "Class Ping Web";
 }
 
@@ -874,7 +892,13 @@ function paintBanner() {
       `<div class="ap-askrow">${oldSelect("ap-old-start", false, S.pick.start, "How much old work to tick off")}` +
       `<button class="ap-btn strong" data-act="old-tick">Tick off</button><button class="ap-btn" data-act="old-keep">Keep all</button></div></div>`;
   }
-  if (S.error) html += `<div class="ap-note-bar warn" role="alert"><span>${esc(S.error)}</span></div>`;
+  // Offline: the saved posts are all here; files live in Google Drive and wait for the internet.
+  const offline = !S.demo && navigator.onLine === false;
+  if (offline) {
+    html += `<div class="ap-note-bar ap-offline" role="status"><span><b>You're offline.</b> Your saved posts, ticks and grades are all here. ` +
+      `Attachments open from Google Drive, so they need the internet. Class Ping checks again when you're back online.</span></div>`;
+  }
+  if (S.error && !offline) html += `<div class="ap-note-bar warn" role="alert"><span>${esc(S.error)}</span></div>`;
   // Unchanged, it is left alone: rebuilt, a screen reader read the same warning out again on every tick.
   if (holder.dataset.shown === html) return;
   holder.innerHTML = html;
@@ -932,6 +956,9 @@ function settings() {
     `<section class="ap-set"><h2>Notifications</h2><p>Get a desktop notification when a new post arrives. This only works while this page is open in a tab.</p>` +
     `<label class="ap-row"><div><b>Notify me of new posts</b><small>${perm === "denied" ? "Your browser has blocked notifications for this site." : perm === "unsupported" ? "This browser cannot show notifications." : "Asks your browser's permission first."}</small></div>` +
     `<input type="checkbox" id="ap-notify" role="switch"${prefs.notify && perm === "granted" ? " checked" : ""}${perm === "denied" || perm === "unsupported" ? " disabled" : ""}></label>` +
+    (S.courses.length ? `<div class="ap-row gap ap-mutehead"><div><b>Notifications for each class</b><small>Turn a class off to keep it quiet, like a club or an elective: its new posts still come into your lists, with no notification.</small></div></div>` +
+      S.courses.map((c) => `<label class="ap-row ap-muterow"><span>${esc(shortClass(c.name))}</span>` +
+        `<input type="checkbox" role="switch" data-mute="${esc(c.id)}" aria-label="Notifications for ${esc(shortClass(c.name))}"${mutedClasses().has(String(c.id)) ? "" : " checked"}></label>`).join("") : "") +
     `<p class="small">For alerts all day, even with the browser closed, use <a href="../download.html">the Windows app</a>.</p></section>` +
     `<section class="ap-set"><h2>Reminders</h2><p>When something on your To-Do list has sat undone this long, the sidebar mentions it under the sections. Press Later there to hide it for a day.</p>` +
     `<label class="ap-row"><div><b>Remind me about waiting work</b><small>Counted from when it was posted.</small></div>` +
@@ -949,6 +976,137 @@ function settings() {
     `<label class="ap-row"><div><b>Remove posts the teacher deleted</b><small>Off: they stay in your list, marked "Deleted by teacher", until you delete them.</small></div>` +
     `<input type="checkbox" id="ap-remove-deleted" role="switch"${prefs.removeDeleted ? " checked" : ""}></label>` +
     `<p class="small ap-linkrow"><a href="../privacy.html">Privacy policy</a><i>&middot;</i><a href="../terms.html">Terms</a><i>&middot;</i><a href="mailto:${SUPPORT_EMAIL}">Contact</a></p></section>`;
+}
+
+// -- grades ------------------------------------------------------------------------------
+// Your own marks, typed in; nothing from Classroom. Kept in this browser (IndexedDB "grades").
+
+let gradesSaving = 0;
+function saveGrades() {
+  clearTimeout(gradesSaving);
+  gradesSaving = setTimeout(() => store.set("grades", grades.clean(S.grades)), 400);
+}
+
+async function openGrades() {
+  if (!S.grades) {
+    try {
+      await grades.loadScales();
+      S.grades = grades.clean(await store.get("grades", null));
+    } catch (e) {
+      toast("The grade scales did not load. Check your connection and try again.");
+      return;
+    }
+  }
+  S.view = "grades"; S.drawer = false; paintAll(); window.scrollTo(0, 0);
+}
+
+const gradeSheet = () => S.grades.sheets[S.grades.current];
+
+function sheetNames() {
+  const seen = {};
+  return S.grades.sheets.map((sheet) => {
+    const name = sheet.name || "Untitled";
+    seen[name] = (seen[name] || 0) + 1;
+    return seen[name] === 1 ? name : `${name} (${seen[name]})`;
+  });
+}
+
+function gradesPage() {
+  const g = S.grades, sheet = gradeSheet(), chosen = grades.scale(g.country);
+  if (!sheet.rows.length) sheet.rows.push({ subject: "", marks: "", out_of: "" });
+  const countries = grades.countries().map((c) => `<option value="${c.key}"${c.key === g.country ? " selected" : ""}>${esc(c.name)}</option>`).join("");
+  const names = sheetNames().map((name, i) => `<option value="${i}"${i === g.current ? " selected" : ""}>${esc(name)}</option>`).join("");
+  const field = (i, key, value, label, extra = "") =>
+    `<input class="ap-gfield${key === "subject" ? "" : " num"}" data-row="${i}" data-key="${key}" value="${esc(value)}" aria-label="${label}"${extra}>`;
+  const rows = sheet.rows.map((row, i) => `<tr>` +
+    `<td>${field(i, "subject", row.subject, `Subject ${i + 1}`, ' placeholder="Subject" maxlength="60"')}</td>` +
+    `<td data-label="Marks">${field(i, "marks", row.marks, `Marks for subject ${i + 1}`, ' placeholder="0" inputmode="decimal" maxlength="10"')}</td>` +
+    `<td data-label="Out of">${field(i, "out_of", row.out_of, `Out of, for subject ${i + 1}`, ' placeholder="100" inputmode="decimal" maxlength="10"')}</td>` +
+    `<td class="pct" data-cell="pct-${i}"></td><td data-cell="grade-${i}"></td><td class="world" data-cell="world-${i}"></td>` +
+    `<td><button type="button" class="ap-gx" data-gact="remove" data-row="${i}" aria-label="Remove subject ${i + 1}" title="Remove this subject">&#x2715;</button></td></tr>`).join("");
+  return `<section class="ap-set ap-grades"><p>Type your marks, and the grade is worked out as you go. Schools and exam boards can set their own boundaries, so your school's word is final. Kept only in this browser.</p>` +
+    `<div class="ap-gpick"><label><span>Country</span><select class="ap-pick" id="ap-gcountry">${countries}</select><small id="ap-gsystem">${esc(chosen.system)}</small></label>` +
+    `<div class="ap-gsheet"><label><span>Sheet</span><select class="ap-pick" id="ap-gsheet">${names}</select></label>` +
+    `<button type="button" class="ap-btn" data-gact="new">New</button><button type="button" class="ap-btn" data-gact="delete">Delete</button>` +
+    `<label class="ap-gname"><span>Name</span><input id="ap-gname" value="${esc(sheet.name)}" maxlength="40"></label></div></div>` +
+    `<div class="ap-gwrap"><table class="ap-gtable"><thead><tr><th>Subject</th><th>Marks</th><th>Out of</th><th class="pct">%</th>` +
+    `<th id="ap-ghead-grade"></th><th id="ap-ghead-world"></th><th><span class="vh">Remove</span></th></tr></thead><tbody>${rows}</tbody></table></div>` +
+    `<div class="ap-rowbtns ap-gadd"><button type="button" class="ap-btn" data-gact="add">Add subject</button><button type="button" class="ap-btn" data-gact="clear">Clear marks</button></div>` +
+    `<div class="ap-gresult"><p class="ap-gtotal" id="ap-gtotal" role="status"></p><p class="small" id="ap-gdetail"></p></div></section>`;
+}
+
+// Typing changes only the cells and the total, so the box you are typing in keeps the keyboard.
+function paintGrades() {
+  const g = S.grades, chosen = grades.scale(g.country), world = grades.international();
+  const same = chosen.key === "intl";
+  const cell = (name) => $(`[data-cell="${name}"]`);
+  const head = $("#ap-ghead-grade"), worldHead = $("#ap-ghead-world"), system = $("#ap-gsystem");
+  if (head) head.textContent = same ? "Grade" : chosen.name;
+  if (worldHead) worldHead.textContent = same ? "" : "International";
+  if (system) system.textContent = chosen.system;
+  gradeSheet().rows.forEach((row, i) => {
+    const r = grades.rowResult(row);
+    const pct = cell(`pct-${i}`), grade = cell(`grade-${i}`), other = cell(`world-${i}`);
+    if (!pct) return;
+    pct.textContent = r.counts ? grades.percentText(r.percent) : "";
+    grade.textContent = r.counts ? grades.gradeText(r.percent, chosen) : r.problem;
+    grade.classList.toggle("warn", !r.counts && !!r.problem);
+    grade.dataset.label = r.counts ? (same ? "Grade" : chosen.name) : "";       // the column's name, on a phone
+    other.dataset.label = r.counts && !same && !r.problem ? "International" : "";
+    other.textContent = r.counts ? (r.problem || (same ? "" : grades.gradeText(r.percent, world))) : "";
+    other.classList.toggle("warn", r.counts && !!r.problem);
+  });
+  const sum = grades.summary(gradeSheet().rows, g.country);
+  const total = $("#ap-gtotal"), detail = $("#ap-gdetail");
+  if (!total) return;
+  if (!sum.subjects) { total.textContent = "Add a subject and its marks to see your grade."; detail.textContent = ""; return; }
+  total.textContent = `Total ${grades.number(sum.marks)} / ${grades.number(sum.outOf)} · ${grades.percentText(sum.percent)} · ` +
+    (same ? sum.grade : `${chosen.name}: ${sum.grade} · International: ${sum.international}`);
+  const notes = [];
+  if (sum.subjects > 1) {
+    notes.push(`Best: ${sum.best[0]} (${grades.percentText(sum.best[1])}). Lowest: ${sum.worst[0]} (${grades.percentText(sum.worst[1])}).`);
+    if (Math.abs(sum.average - sum.percent) >= 0.5) notes.push(`The average of the subjects' percentages is ${grades.percentText(sum.average)}; the total counts bigger papers for more.`);
+  }
+  if (sum.next) notes.push(sum.next);
+  detail.textContent = notes.join("  ");
+}
+
+function gradesAction(act, t) {
+  const g = S.grades, sheet = gradeSheet();
+  let focus = "";
+  if (act === "add") {
+    if (sheet.rows.length >= grades.MAX_ROWS) return;
+    sheet.rows.push({ subject: "", marks: "", out_of: "" });
+    focus = `.ap-gfield[data-row="${sheet.rows.length - 1}"][data-key="subject"]`;
+  } else if (act === "remove") {
+    sheet.rows.splice(Number(t.dataset.row), 1);
+    focus = `.ap-gfield[data-row="${Math.max(0, Math.min(Number(t.dataset.row), sheet.rows.length - 1))}"][data-key="subject"]`;
+  } else if (act === "clear") {
+    for (const row of sheet.rows) row.marks = "";
+  } else if (act === "new") {
+    if (g.sheets.length >= grades.MAX_SHEETS) return;
+    // The same subjects as this sheet, with no marks: the next test is the same subjects.
+    const rows = sheet.rows.filter((r) => r.subject.trim()).map((r) => ({ subject: r.subject, marks: "", out_of: r.out_of }));
+    const fresh = grades.blankSheet(`Sheet ${g.sheets.length + 1}`);
+    if (rows.length) fresh.rows = rows;
+    g.sheets.push(fresh);
+    g.current = g.sheets.length - 1;
+    focus = "#ap-gname";
+  } else if (act === "delete") {
+    // Two presses, no pop-up: the first asks, the second deletes.
+    if (t.dataset.sure !== "1") {
+      t.dataset.sure = "1"; t.textContent = "Sure?";
+      setTimeout(() => { if (t.isConnected) { t.dataset.sure = ""; t.textContent = "Delete"; } }, 3500);
+      return;
+    }
+    g.sheets.splice(g.current, 1);
+    if (!g.sheets.length) g.sheets.push(grades.blankSheet());
+    g.current = Math.max(0, Math.min(g.current, g.sheets.length - 1));
+  }
+  saveGrades();
+  paintAll();
+  const target = focus && $(focus);
+  if (target) { target.focus(); if (focus === "#ap-gname") target.select(); }
 }
 
 // A repaint replaces the buttons, so the one that had the keyboard focus is found again afterwards.
@@ -974,7 +1132,7 @@ function paintAll() {
 function paintEverything() {
   const root = $("#ap-root");
   if (!root) return;
-  const showWelcome = !S.demo && !S.posts.length && !S.lastSync && S.view !== "settings";
+  const showWelcome = !S.demo && !S.posts.length && !S.lastSync && S.view !== "settings" && S.view !== "grades";
   root.classList.toggle("welcome-mode", showWelcome);
   root.classList.toggle("busy", S.syncing || S.connecting);
   syncDrawer();
@@ -985,6 +1143,12 @@ function paintEverything() {
     $("#ap-page").innerHTML = welcome();
     if (!had && !calm()) $("#ap-page .ap-wcard").classList.add("enter");
     paintNav();
+    return;
+  }
+  if (S.view === "grades") {
+    const had = $("#ap-page .ap-grades");
+    $("#ap-page").innerHTML = `<header class="ap-head"><h1 id="ap-title">Grades</h1><p id="ap-note"></p></header><div id="ap-banner"></div><div class="ap-settings${had || calm() ? "" : " enter"}">${gradesPage()}</div>`;
+    paintNav(); paintBanner(); paintCheck(); paintGrades();
     return;
   }
   if (!$("#ap-list") && S.view !== "settings") mountPage();
@@ -1117,7 +1281,8 @@ function wire() {
     }
     if (t.dataset.later) { store.savePrefs({ remindUntil: Date.now() + 86400000 }); paintNav(); return; }
     if (t.dataset.view) { S.view = t.dataset.view; S.limit = PAGE; S.drawer = false; S.enter = true; paintAll(); window.scrollTo(0, 0); return; }
-    if (t.dataset.course) { S.course = t.dataset.course; S.limit = PAGE; S.drawer = false; S.enter = true; if (S.view === "settings") S.view = "todo"; paintAll(); window.scrollTo(0, 0); return; }
+    if (t.dataset.course) { S.course = t.dataset.course; S.limit = PAGE; S.drawer = false; S.enter = true; if (S.view === "settings" || S.view === "grades") S.view = "todo"; paintAll(); window.scrollTo(0, 0); return; }
+    if (t.dataset.gact) { gradesAction(t.dataset.gact, t); return; }
     if (t.dataset.done) { toggleDone(t.dataset.done, t); return; }
     if (t.dataset.forget) { pressForget(t.dataset.forget, t); return; }
     if (t.dataset.more) { const id = t.dataset.more; if (S.expanded.has(id)) S.expanded.delete(id); else S.expanded.add(id); paintAll(); return; }
@@ -1132,6 +1297,7 @@ function wire() {
       return;
     }
     if (t.id === "ap-check") { sync(); return; }
+    if (t.id === "ap-grades") { if (S.view === "grades") { S.view = "todo"; S.drawer = false; paintAll(); } else openGrades(); return; }
     if (t.id === "ap-settings") { S.view = S.view === "settings" ? "todo" : "settings"; S.bulkNote = ""; S.drawer = false; paintAll(); window.scrollTo(0, 0); return; }
     if (t.id === "ap-menu") { if (S.drawer) closeDrawer(true); else openDrawer(); return; }
     if (t.id === "ap-scrim") { closeDrawer(false); return; }
@@ -1163,6 +1329,15 @@ function wire() {
     const t = event.target;
     if (t.dataset && t.dataset.move) { mark("moved", t.dataset.move, t.value); persist(); paintAll(); return; }
     if (t.id === "ap-range") { S.range = t.value; S.limit = PAGE; paintAll(); return; }
+    if (t.dataset && t.dataset.mute !== undefined) {
+      const quiet = mutedClasses();
+      if (t.checked) quiet.delete(String(t.dataset.mute)); else quiet.add(String(t.dataset.mute));
+      store.savePrefs({ mutedClasses: [...quiet] });
+      paintNav();
+      return;
+    }
+    if (t.id === "ap-gcountry") { S.grades.country = t.value; saveGrades(); paintGrades(); return; }
+    if (t.id === "ap-gsheet") { S.grades.current = Number(t.value); saveGrades(); paintAll(); return; }
     if (t.id === "ap-old-start") { S.pick.start = t.value; return; }
     if (t.id === "ap-age") { store.savePrefs({ ageGroup: t.value, ageAsked: true }); paintAll(); return; }
     if (t.id === "ap-remind") { store.savePrefs({ remindDays: Number(t.value), remindUntil: 0 }); paintNav(); return; }
@@ -1190,6 +1365,19 @@ function wire() {
 
   let typing = 0;
   $("#ap-root").addEventListener("input", (event) => {
+    const box = event.target;
+    if (box.classList && box.classList.contains("ap-gfield")) {
+      const row = gradeSheet().rows[Number(box.dataset.row)];
+      if (row) { row[box.dataset.key] = box.value; saveGrades(); paintGrades(); }
+      return;
+    }
+    if (box.id === "ap-gname") {
+      gradeSheet().name = box.value.trim().slice(0, 40) || "My grades";
+      const pick = $("#ap-gsheet");
+      if (pick && pick.options[S.grades.current]) pick.options[S.grades.current].textContent = sheetNames()[S.grades.current];
+      saveGrades();
+      return;
+    }
     if (event.target.id !== "ap-search") return;
     clearTimeout(typing);
     typing = setTimeout(() => { S.q = event.target.value.trim(); S.limit = PAGE; paintHead(); paintList(); paintNav(); }, 120);
@@ -1222,8 +1410,14 @@ function wire() {
     if (auth.signedIn() && !fresh) sync({ quiet: true });
   });
   window.addEventListener("pagehide", saveNow);
+  window.addEventListener("offline", () => paintAll());
+  window.addEventListener("online", () => {
+    S.error = "";
+    paintAll();
+    if (auth.signedIn() && !S.demo) sync({ quiet: true });
+  });
   setInterval(() => {
-    if (document.visibilityState !== "visible" || S.demo) return;
+    if (document.visibilityState !== "visible" || S.demo || navigator.onLine === false) return;
     if (auth.signedIn()) sync({ quiet: true });
     else if (S.posts.length && !S.needSignIn) { S.needSignIn = true; paintAll(); }     // say so, instead of quietly stopping
   }, SYNC_EVERY_MS);
@@ -1259,6 +1453,7 @@ function chrome() {
     `<div class="ap-checkrow"><button id="ap-check" class="ap-btn strong big">Check now</button></div>` +
     `<nav id="ap-nav" aria-label="Lists"></nav>` +
     `<div class="ap-side-foot"><div id="ap-foot"></div>` +
+    `<button id="ap-grades" class="ap-nav"><span>Grades</span></button>` +
     `<button id="ap-settings" class="ap-nav"><span>Settings</span></button>` +
     `<a class="ap-nav" id="ap-feedback" href="${esc(feedbackHref())}"><span>Send feedback</span></a>` +
     `<a class="ap-nav" href="../"><span>Class Ping home</span></a>` +

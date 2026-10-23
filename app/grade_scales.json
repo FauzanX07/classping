@@ -1,0 +1,102 @@
+{
+  "_about": "Grade scales for the grade calculator, shared by the desktop app (app/grades.py) and the web version (site/app/grades.js). Each band is the lowest percentage that earns it, highest first. They are the scales most schools in each country use; a school or exam board can set its own boundaries. Keep site/app/grade_scales.json an exact copy (tests/test_grades.py checks).",
+  "international": {
+    "key": "intl",
+    "name": "International",
+    "system": "A to F, with a 4.0 grade point",
+    "bands": [
+      {"min": 90, "grade": "A", "points": "4.0"},
+      {"min": 80, "grade": "B", "points": "3.0"},
+      {"min": 70, "grade": "C", "points": "2.0"},
+      {"min": 60, "grade": "D", "points": "1.0"},
+      {"min": 0, "grade": "F", "points": "0.0"}
+    ]
+  },
+  "countries": [
+    {"key": "bd", "name": "Bangladesh", "system": "SSC / HSC, GPA out of 5", "bands": [
+      {"min": 80, "grade": "A+", "points": "5.00"}, {"min": 70, "grade": "A", "points": "4.00"},
+      {"min": 60, "grade": "A-", "points": "3.50"}, {"min": 50, "grade": "B", "points": "3.00"},
+      {"min": 40, "grade": "C", "points": "2.00"}, {"min": 33, "grade": "D", "points": "1.00"},
+      {"min": 0, "grade": "F", "points": "0.00"}]},
+    {"key": "br", "name": "Brazil", "system": "Marks out of 10, pass at 6", "score": {"from": 0, "to": 10}, "bands": [
+      {"min": 60, "grade": "Aprovado (pass)"}, {"min": 0, "grade": "Reprovado (fail)"}]},
+    {"key": "ca", "name": "Canada", "system": "Levels 1 to 4 (Ontario)", "bands": [
+      {"min": 80, "grade": "A", "points": "Level 4"}, {"min": 70, "grade": "B", "points": "Level 3"},
+      {"min": 60, "grade": "C", "points": "Level 2"}, {"min": 50, "grade": "D", "points": "Level 1"},
+      {"min": 0, "grade": "R (not passed)"}]},
+    {"key": "cn", "name": "China", "system": "Five-level grading", "bands": [
+      {"min": 90, "grade": "Excellent"}, {"min": 80, "grade": "Good"}, {"min": 70, "grade": "Average"},
+      {"min": 60, "grade": "Pass"}, {"min": 0, "grade": "Fail"}]},
+    {"key": "eg", "name": "Egypt", "system": "Percentage grading", "bands": [
+      {"min": 85, "grade": "Excellent"}, {"min": 75, "grade": "Very good"}, {"min": 65, "grade": "Good"},
+      {"min": 50, "grade": "Pass"}, {"min": 0, "grade": "Fail"}]},
+    {"key": "fr", "name": "France", "system": "Marks out of 20", "score": {"from": 0, "to": 20}, "bands": [
+      {"min": 80, "grade": "Très bien"}, {"min": 70, "grade": "Bien"}, {"min": 60, "grade": "Assez bien"},
+      {"min": 50, "grade": "Passable"}, {"min": 0, "grade": "Insuffisant"}]},
+    {"key": "de", "name": "Germany", "system": "Grades 1 to 6", "bands": [
+      {"min": 92, "grade": "1", "points": "sehr gut"}, {"min": 81, "grade": "2", "points": "gut"},
+      {"min": 67, "grade": "3", "points": "befriedigend"}, {"min": 50, "grade": "4", "points": "ausreichend"},
+      {"min": 30, "grade": "5", "points": "mangelhaft"}, {"min": 0, "grade": "6", "points": "ungenügend"}]},
+    {"key": "in", "name": "India", "system": "CBSE, grade point out of 10", "bands": [
+      {"min": 91, "grade": "A1", "points": "10"}, {"min": 81, "grade": "A2", "points": "9"},
+      {"min": 71, "grade": "B1", "points": "8"}, {"min": 61, "grade": "B2", "points": "7"},
+      {"min": 51, "grade": "C1", "points": "6"}, {"min": 41, "grade": "C2", "points": "5"},
+      {"min": 33, "grade": "D", "points": "4"}, {"min": 0, "grade": "E (needs improvement)"}]},
+    {"key": "it", "name": "Italy", "system": "Marks out of 10, pass at 6", "score": {"from": 0, "to": 10}, "bands": [
+      {"min": 90, "grade": "Ottimo"}, {"min": 80, "grade": "Buono"}, {"min": 70, "grade": "Discreto"},
+      {"min": 60, "grade": "Sufficiente"}, {"min": 0, "grade": "Insufficiente"}]},
+    {"key": "ke", "name": "Kenya", "system": "KCSE, A to E", "bands": [
+      {"min": 80, "grade": "A"}, {"min": 75, "grade": "A-"}, {"min": 70, "grade": "B+"}, {"min": 65, "grade": "B"},
+      {"min": 60, "grade": "B-"}, {"min": 55, "grade": "C+"}, {"min": 50, "grade": "C"}, {"min": 45, "grade": "C-"},
+      {"min": 40, "grade": "D+"}, {"min": 35, "grade": "D"}, {"min": 30, "grade": "D-"}, {"min": 0, "grade": "E"}]},
+    {"key": "my", "name": "Malaysia", "system": "SPM, A+ to G", "bands": [
+      {"min": 90, "grade": "A+"}, {"min": 80, "grade": "A"}, {"min": 70, "grade": "A-"}, {"min": 65, "grade": "B+"},
+      {"min": 60, "grade": "B"}, {"min": 55, "grade": "C+"}, {"min": 50, "grade": "C"}, {"min": 45, "grade": "D"},
+      {"min": 40, "grade": "E"}, {"min": 0, "grade": "G"}]},
+    {"key": "mx", "name": "Mexico", "system": "Marks out of 10, pass at 6", "score": {"from": 0, "to": 10}, "bands": [
+      {"min": 60, "grade": "Aprobado (pass)"}, {"min": 0, "grade": "No aprobado (fail)"}]},
+    {"key": "nl", "name": "Netherlands", "system": "Marks 1 to 10, pass at 5.5", "score": {"from": 1, "to": 10}, "bands": [
+      {"min": 50, "grade": "Voldoende (pass)"}, {"min": 0, "grade": "Onvoldoende (fail)"}]},
+    {"key": "ng", "name": "Nigeria", "system": "WAEC, A1 to F9", "bands": [
+      {"min": 75, "grade": "A1", "points": "Excellent"}, {"min": 70, "grade": "B2", "points": "Very good"},
+      {"min": 65, "grade": "B3", "points": "Good"}, {"min": 60, "grade": "C4", "points": "Credit"},
+      {"min": 55, "grade": "C5", "points": "Credit"}, {"min": 50, "grade": "C6", "points": "Credit"},
+      {"min": 45, "grade": "D7", "points": "Pass"}, {"min": 40, "grade": "E8", "points": "Pass"},
+      {"min": 0, "grade": "F9", "points": "Fail"}]},
+    {"key": "pk", "name": "Pakistan", "system": "Matric / Inter boards", "bands": [
+      {"min": 80, "grade": "A1"}, {"min": 70, "grade": "A"}, {"min": 60, "grade": "B"}, {"min": 50, "grade": "C"},
+      {"min": 40, "grade": "D"}, {"min": 33, "grade": "E"}, {"min": 0, "grade": "F"}]},
+    {"key": "ph", "name": "Philippines", "system": "DepEd K to 12", "bands": [
+      {"min": 90, "grade": "Outstanding"}, {"min": 85, "grade": "Very satisfactory"},
+      {"min": 80, "grade": "Satisfactory"}, {"min": 75, "grade": "Fairly satisfactory"},
+      {"min": 0, "grade": "Did not meet expectations"}]},
+    {"key": "ru", "name": "Russia", "system": "Marks 2 to 5", "bands": [
+      {"min": 85, "grade": "5", "points": "отлично"}, {"min": 70, "grade": "4", "points": "хорошо"},
+      {"min": 50, "grade": "3", "points": "удовлетворительно"}, {"min": 0, "grade": "2", "points": "неудовлетворительно"}]},
+    {"key": "sa", "name": "Saudi Arabia", "system": "Percentage grading", "bands": [
+      {"min": 90, "grade": "Excellent"}, {"min": 80, "grade": "Very good"}, {"min": 70, "grade": "Good"},
+      {"min": 60, "grade": "Pass"}, {"min": 0, "grade": "Fail"}]},
+    {"key": "za", "name": "South Africa", "system": "NSC, levels 1 to 7", "bands": [
+      {"min": 80, "grade": "7", "points": "Outstanding"}, {"min": 70, "grade": "6", "points": "Meritorious"},
+      {"min": 60, "grade": "5", "points": "Substantial"}, {"min": 50, "grade": "4", "points": "Adequate"},
+      {"min": 40, "grade": "3", "points": "Moderate"}, {"min": 30, "grade": "2", "points": "Elementary"},
+      {"min": 0, "grade": "1", "points": "Not achieved"}]},
+    {"key": "es", "name": "Spain", "system": "Marks out of 10", "score": {"from": 0, "to": 10}, "bands": [
+      {"min": 90, "grade": "Sobresaliente"}, {"min": 70, "grade": "Notable"}, {"min": 60, "grade": "Bien"},
+      {"min": 50, "grade": "Suficiente"}, {"min": 0, "grade": "Insuficiente"}]},
+    {"key": "tr", "name": "Turkey", "system": "Marks 1 to 5", "bands": [
+      {"min": 85, "grade": "5", "points": "Pekiyi"}, {"min": 70, "grade": "4", "points": "İyi"},
+      {"min": 60, "grade": "3", "points": "Orta"}, {"min": 50, "grade": "2", "points": "Geçer"},
+      {"min": 0, "grade": "1", "points": "Geçmez"}]},
+    {"key": "us", "name": "United States", "system": "A to F with plus and minus, 4.0 GPA", "bands": [
+      {"min": 93, "grade": "A", "points": "4.0"}, {"min": 90, "grade": "A-", "points": "3.7"},
+      {"min": 87, "grade": "B+", "points": "3.3"}, {"min": 83, "grade": "B", "points": "3.0"},
+      {"min": 80, "grade": "B-", "points": "2.7"}, {"min": 77, "grade": "C+", "points": "2.3"},
+      {"min": 73, "grade": "C", "points": "2.0"}, {"min": 70, "grade": "C-", "points": "1.7"},
+      {"min": 67, "grade": "D+", "points": "1.3"}, {"min": 63, "grade": "D", "points": "1.0"},
+      {"min": 60, "grade": "D-", "points": "0.7"}, {"min": 0, "grade": "F", "points": "0.0"}]},
+    {"key": "vn", "name": "Vietnam", "system": "Marks out of 10", "score": {"from": 0, "to": 10}, "bands": [
+      {"min": 80, "grade": "Giỏi"}, {"min": 65, "grade": "Khá"}, {"min": 50, "grade": "Trung bình"},
+      {"min": 35, "grade": "Yếu"}, {"min": 0, "grade": "Kém"}]}
+  ]
+}
